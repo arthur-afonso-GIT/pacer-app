@@ -1,0 +1,2 @@
+-- Intentionally empty. Test/demo users must be created through Supabase Auth so
+-- auth.users and public.profiles remain consistent. Never place credentials here.

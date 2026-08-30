@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+storybook-static
+playwright-report
+test-results
+graphify-out
+.env
+.env.local
+supabase/.branches
+supabase/.temp
+.graphify_analysis.json
+.graphify_labels.json

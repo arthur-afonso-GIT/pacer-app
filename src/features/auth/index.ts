@@ -1,0 +1,6 @@
+export { AuthPage } from './AuthPage'
+export { AuthProvider } from './AuthProvider'
+export { useAuth } from './auth-context'
+export { ProtectedRoute } from './ProtectedRoute'
+export { signIn, signOut, signUp } from './api'
+export { authSchema, type AuthCredentials } from './schemas'

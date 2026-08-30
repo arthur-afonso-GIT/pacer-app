@@ -1,0 +1,35 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --color-canvas: var(--ds-color-canvas);
+  --color-surface: var(--ds-color-surface);
+  --color-primary: var(--ds-color-text);
+  --color-secondary: var(--ds-color-text-muted);
+  --color-accent: var(--ds-color-accent);
+  --color-accent-soft: var(--ds-color-success-subtle);
+  --color-on-accent: var(--ds-color-on-accent);
+  --color-positive: var(--ds-color-success);
+  --color-subtle: var(--ds-color-border);
+  --shadow-accent: var(--ds-shadow-md);
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  color-scheme: light;
+  background: var(--ds-color-canvas);
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  font-family: var(--ds-font-sans);
+  text-rendering: optimizeLegibility;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
