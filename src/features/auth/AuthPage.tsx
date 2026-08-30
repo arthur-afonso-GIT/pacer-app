@@ -1,6 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Check,
+  Eye,
+  EyeOff,
   ShieldCheck,
   Sparkles,
   UsersRound,
@@ -12,20 +14,17 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Button, Input, Surface } from '@/design-system'
 import { signIn as defaultSignIn, signUp as defaultSignUp } from './api'
 import { authCopy } from './copy'
-import { authSchema, type AuthCredentials } from './schemas'
+import {
+  signInFormSchema,
+  signUpFormSchema,
+  type AuthCredentials,
+  type AuthFormValues,
+} from './schemas'
+import { authErrorMessage } from './errors'
 
 type Props = {
   signIn?: (value: AuthCredentials) => Promise<unknown>
   signUp?: (value: AuthCredentials) => Promise<unknown>
-}
-
-function messageFor(error: unknown) {
-  if (!(error instanceof Error)) return authCopy.genericError
-  const message = error.message.toLowerCase()
-  if (message.includes('invalid login credentials'))
-    return authCopy.invalidCredentials
-  if (message.includes('email not confirmed')) return authCopy.emailNotConfirmed
-  return authCopy.genericError
 }
 
 function responseHasSession(result: unknown) {
@@ -47,19 +46,28 @@ export function AuthPage({
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn')
   const [requestError, setRequestError] = useState<string>()
   const [success, setSuccess] = useState<string>()
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmation, setShowConfirmation] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const {
     register,
     handleSubmit,
     reset,
+    getValues,
     formState: { errors, isSubmitting },
-  } = useForm<AuthCredentials>({
-    resolver: zodResolver(authSchema),
-    defaultValues: { email: '', password: '' },
+  } = useForm<AuthFormValues>({
+    resolver: zodResolver(
+      mode === 'signUp' ? signUpFormSchema : signInFormSchema,
+    ),
+    defaultValues: { email: '', password: '', confirmPassword: '' },
   })
 
   const changeMode = (nextMode: 'signIn' | 'signUp') => {
+    if (isSubmitting) return
+    reset({ email: getValues('email'), password: '', confirmPassword: '' })
+    setShowPassword(false)
+    setShowConfirmation(false)
     setMode(nextMode)
     setRequestError(undefined)
     setSuccess(undefined)
@@ -69,8 +77,9 @@ export function AuthPage({
     setRequestError(undefined)
     setSuccess(undefined)
     try {
+      const credentials = { email: value.email, password: value.password }
       if (mode === 'signIn') {
-        await signIn(value)
+        await signIn(credentials)
         const state = location.state as { from?: { pathname?: string } } | null
         const destination = state?.from?.pathname?.startsWith('/')
           ? state.from.pathname
@@ -79,16 +88,18 @@ export function AuthPage({
         return
       }
 
-      const result = await signUp(value)
+      const result = await signUp(credentials)
       if (responseHasSession(result)) {
         await navigate('/onboarding', { replace: true })
       } else {
-        reset({ email: value.email, password: '' })
+        reset({ email: value.email, password: '', confirmPassword: '' })
+        setShowPassword(false)
+        setShowConfirmation(false)
         setSuccess(authCopy.signUpSuccess)
         setMode('signIn')
       }
     } catch (error) {
-      setRequestError(messageFor(error))
+      setRequestError(authErrorMessage(error))
     }
   })
 
@@ -156,7 +167,7 @@ export function AuthPage({
               : 'Comece sua jornada'}
           </p>
           <h1 className="mt-2 text-3xl font-black tracking-[-0.035em] sm:text-4xl">
-            {authCopy.title}
+            {mode === 'signIn' ? 'Entrar na sua conta' : 'Crie sua conta'}
           </h1>
           <p className="text-secondary mt-3 leading-relaxed">
             {authCopy.subtitle}
@@ -204,18 +215,70 @@ export function AuthPage({
                 : {})}
               {...register('email')}
             />
-            <Input
-              label={authCopy.password}
-              type="password"
-              autoComplete={
-                mode === 'signIn' ? 'current-password' : 'new-password'
-              }
-              placeholder="No mínimo 8 caracteres"
-              {...(errors.password?.message
-                ? { error: errors.password.message }
-                : {})}
-              {...register('password')}
-            />
+            <div className="grid gap-1">
+              <Input
+                label={authCopy.password}
+                type={showPassword ? 'text' : 'password'}
+                autoComplete={
+                  mode === 'signIn' ? 'current-password' : 'new-password'
+                }
+                placeholder={
+                  mode === 'signUp' ? 'No mínimo 8 caracteres' : 'Sua senha'
+                }
+                {...(errors.password?.message
+                  ? { error: errors.password.message }
+                  : {})}
+                {...register('password')}
+              />
+              <button
+                type="button"
+                className="text-accent flex min-h-11 items-center justify-end gap-2 text-sm font-bold"
+                aria-pressed={showPassword}
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                onClick={() => setShowPassword((value) => !value)}
+              >
+                {showPassword ? (
+                  <EyeOff aria-hidden size={18} />
+                ) : (
+                  <Eye aria-hidden size={18} />
+                )}
+                {showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+              </button>
+            </div>
+            {mode === 'signUp' && (
+              <div className="grid gap-1">
+                <Input
+                  label="Confirmar senha"
+                  type={showConfirmation ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="Digite a senha novamente"
+                  {...(errors.confirmPassword?.message
+                    ? { error: errors.confirmPassword.message }
+                    : {})}
+                  {...register('confirmPassword')}
+                />
+                <button
+                  type="button"
+                  className="text-accent flex min-h-11 items-center justify-end gap-2 text-sm font-bold"
+                  aria-pressed={showConfirmation}
+                  aria-label={
+                    showConfirmation
+                      ? 'Ocultar confirmação de senha'
+                      : 'Mostrar confirmação de senha'
+                  }
+                  onClick={() => setShowConfirmation((value) => !value)}
+                >
+                  {showConfirmation ? (
+                    <EyeOff aria-hidden size={18} />
+                  ) : (
+                    <Eye aria-hidden size={18} />
+                  )}
+                  {showConfirmation
+                    ? 'Ocultar confirmação'
+                    : 'Mostrar confirmação'}
+                </button>
+              </div>
+            )}
             {requestError && (
               <p
                 role="alert"
