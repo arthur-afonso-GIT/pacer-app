@@ -23,10 +23,12 @@ interface CalendarRow {
   submitted_at: string
   resolved_at: string | null
   status: Database['public']['Enums']['submission_status']
-  challenge_habits: { habits: { name: string } | null } | null
-  challenges: {
-    name: string
-    groups: { name: string; timezone: string } | null
+  challenge_habits: {
+    habits: { name: string } | null
+    challenges: {
+      name: string
+      groups: { name: string; timezone: string } | null
+    } | null
   } | null
 }
 
@@ -39,7 +41,7 @@ export const createCalendarRepository = (client: Client) => ({
     const { data, error } = await client
       .from('submissions')
       .select(
-        'id, occurred_on, submitted_at, resolved_at, status, challenge_habits(habits(name)), challenges(name, groups(name, timezone))',
+        'id, occurred_on, submitted_at, resolved_at, status, challenge_habits(habits(name), challenges(name, groups(name, timezone)))',
       )
       .eq('submitter_id', userId)
       .gte('occurred_on', range.from)
@@ -49,7 +51,7 @@ export const createCalendarRepository = (client: Client) => ({
     if (error) throw error
     const rows = data as unknown as CalendarRow[]
     const submissions: CalendarEntry[] = rows.map((row) => {
-      const challenge = row.challenges
+      const challenge = row.challenge_habits?.challenges
       return {
         id: row.id,
         occurredOn: row.occurred_on,

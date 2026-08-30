@@ -48,6 +48,7 @@ export function CalendarView({
   onNext,
   onCancel,
   onDispute,
+  onRetry,
 }: {
   month: CalendarMonth
   entries?: readonly CalendarEntry[]
@@ -62,6 +63,7 @@ export function CalendarView({
   onNext: () => void
   onCancel?: (submissionId: string) => void
   onDispute?: (submissionId: string, reason: string) => void
+  onRetry?: () => void
 }) {
   const [cancelCandidate, setCancelCandidate] = useState<string>()
   const [disputeCandidate, setDisputeCandidate] = useState<string>()
@@ -111,10 +113,17 @@ export function CalendarView({
           ))}
         </div>
       ) : error ? (
-        <EmptyState
-          title="Não foi possível carregar o histórico"
-          description={error}
-        />
+        <div role="alert" className="grid gap-3">
+          <EmptyState
+            title="Não foi possível carregar o histórico"
+            description={error}
+          />
+          {onRetry && (
+            <Button type="button" variant="secondary" onClick={onRetry}>
+              Tentar novamente
+            </Button>
+          )}
+        </div>
       ) : entries.length === 0 ? (
         <EmptyState
           icon={<CalendarDays aria-hidden size={36} />}
@@ -272,9 +281,15 @@ export function CalendarRoute() {
       month={month}
       entries={entries.data ?? []}
       loading={entries.isLoading}
-      {...(entries.error instanceof Error
-        ? { error: entries.error.message }
+      {...(entries.isError
+        ? {
+            error:
+              'Não conseguimos buscar suas atividades. Tente novamente. Se o erro persistir, contate o suporte.',
+          }
         : {})}
+      onRetry={() => {
+        void entries.refetch()
+      }}
       {...(cancellation.error ? { cancelError: 'cancel-failed' } : {})}
       {...(cancellation.isPending
         ? { cancellingId: cancellation.variables }

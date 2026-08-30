@@ -1132,6 +1132,10 @@ export type Database = {
         Args: { p_decision: string; p_group_id: string; p_post_id: string }
         Returns: string
       }
+      delete_activity_post: {
+        Args: { p_post_id: string }
+        Returns: string
+      }
       propose_activity_points: {
         Args: { p_group_id: string; p_points: number; p_post_id: string }
         Returns: string

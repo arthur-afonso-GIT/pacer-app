@@ -48,6 +48,9 @@ describe('activity posts in calendar', () => {
       rpc,
     } as never)
     const entries = await repo.listMonth('user', { year: 2026, month: 8 })
+    expect(builder.select).toHaveBeenCalledWith(
+      'id, occurred_on, submitted_at, resolved_at, status, challenge_habits(habits(name), challenges(name, groups(name, timezone)))',
+    )
     expect(entries.map((entry) => entry.id)).toEqual(['post:a', 'post:b'])
     expect(rpc).toHaveBeenCalledWith('get_my_activity_calendar', {
       p_from: '2026-08-01',
@@ -64,5 +67,48 @@ describe('activity posts in calendar', () => {
     )
     expect(screen.getAllByText('Leitura')).toHaveLength(2)
     expect(screen.queryByText('Cancelar atividade')).not.toBeInTheDocument()
+  })
+
+  it('reads legacy challenge metadata through the actual challenge_habits relationship', async () => {
+    const builder = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      gte: vi.fn(),
+      lt: vi.fn(),
+      order: vi.fn(),
+    }
+    for (const fn of Object.values(builder)) fn.mockReturnValue(builder)
+    builder.order.mockReturnValueOnce(builder).mockResolvedValueOnce({
+      error: null,
+      data: [
+        {
+          id: 'legacy',
+          occurred_on: '2026-08-30',
+          submitted_at: '2026-08-30T12:00:00Z',
+          resolved_at: null,
+          status: 'pending',
+          challenge_habits: {
+            habits: { name: 'Corrida' },
+            challenges: {
+              name: 'Desafio',
+              groups: { name: 'Amigos', timezone: 'America/Fortaleza' },
+            },
+          },
+        },
+      ],
+    })
+    const repo = createCalendarRepository({
+      from: vi.fn().mockReturnValue(builder),
+      rpc: vi.fn().mockResolvedValue({ error: null, data: [] }),
+    } as never)
+    expect(await repo.listMonth('user', { year: 2026, month: 8 })).toEqual([
+      expect.objectContaining({
+        id: 'legacy',
+        habitName: 'Corrida',
+        challengeName: 'Desafio',
+        groupName: 'Amigos',
+        timezone: 'America/Fortaleza',
+      }),
+    ])
   })
 })

@@ -1,6 +1,11 @@
 import { authCopy } from './copy'
 
 const messages: Record<string, string> = {
+  same_password: 'Escolha uma senha diferente da sua senha atual.',
+  session_not_found:
+    'Sua sessão expirou. Solicite um novo link de recuperação.',
+  otp_expired:
+    'Este link expirou ou já foi usado. Solicite um novo link de recuperação.',
   invalid_credentials: authCopy.invalidCredentials,
   email_not_confirmed: authCopy.emailNotConfirmed,
   email_exists:

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Button, Input, Surface } from '@/design-system'
 import { signIn as defaultSignIn, signUp as defaultSignUp } from './api'
 import { authCopy } from './copy'
@@ -245,6 +245,14 @@ export function AuthPage({
                 {showPassword ? 'Ocultar senha' : 'Mostrar senha'}
               </button>
             </div>
+            {mode === 'signIn' && (
+              <Link
+                to="/recuperar-senha"
+                className="text-accent flex min-h-11 items-center justify-end text-sm font-bold"
+              >
+                Esqueci minha senha
+              </Link>
+            )}
             {mode === 'signUp' && (
               <div className="grid gap-1">
                 <Input

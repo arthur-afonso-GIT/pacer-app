@@ -24,3 +24,12 @@ export const signUpFormSchema = authSchema
     message: 'As senhas precisam ser iguais.',
   })
 export type AuthFormValues = z.infer<typeof signInFormSchema>
+
+export const recoveryEmailSchema = authSchema.pick({ email: true })
+export const newPasswordSchema = authSchema
+  .pick({ password: true })
+  .extend({ confirmPassword: z.string() })
+  .refine((value) => value.password === value.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'As senhas precisam ser iguais.',
+  })

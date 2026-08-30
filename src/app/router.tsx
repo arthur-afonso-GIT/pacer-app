@@ -29,6 +29,24 @@ const feature = async (name: FeatureRouteName) => {
 
 const router = createBrowserRouter([
   {
+    path: '/recuperar-senha',
+    errorElement: <RouteErrorPage />,
+    lazy: async () => {
+      const { ForgotPasswordPage } =
+        await import('@/features/auth/PasswordRecovery')
+      return { Component: ForgotPasswordPage }
+    },
+  },
+  {
+    path: '/redefinir-senha',
+    errorElement: <RouteErrorPage />,
+    lazy: async () => {
+      const { ResetPasswordPage } =
+        await import('@/features/auth/PasswordRecovery')
+      return { Component: ResetPasswordPage }
+    },
+  },
+  {
     path: '/entrar',
     errorElement: <RouteErrorPage />,
     lazy: async () => {

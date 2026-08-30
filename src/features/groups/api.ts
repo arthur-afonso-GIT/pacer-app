@@ -230,5 +230,21 @@ export const createGroupsRepository = (client: SupabaseClient<Database>) => ({
     })
     return result(data, error)
   },
+  async deletePost(postId: string) {
+    const { data, error } = await client.rpc('delete_activity_post', {
+      p_post_id: postId,
+    })
+    const photoPath = result(data, error)
+    // Database deletion is already committed. Do not report the post as still
+    // present if a subsequent Storage cleanup fails.
+    try {
+      const removed = await client.storage
+        .from('activity-posts')
+        .remove([photoPath])
+      return { photoRemoved: !removed.error }
+    } catch {
+      return { photoRemoved: false }
+    }
+  },
 })
 export type GroupsRepository = ReturnType<typeof createGroupsRepository>

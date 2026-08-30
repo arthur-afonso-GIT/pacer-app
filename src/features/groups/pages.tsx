@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import * as Tabs from '@radix-ui/react-tabs'
 import { GroupLeaderboard } from './GroupLeaderboard'
@@ -335,6 +336,10 @@ export function GroupOverviewPage({
   onRemoveMember,
   onVotePost,
   onProposePostPoints,
+  onDeletePost,
+  postActionPending = false,
+  postActionError,
+  postActionSuccess,
 }: {
   overview: GroupOverview
   onCreateChallenge?: () => void
@@ -346,7 +351,13 @@ export function GroupOverviewPage({
   onRemoveMember?: (userId: string) => void
   onVotePost?: (postId: string, decision: 'approved' | 'rejected') => void
   onProposePostPoints?: (postId: string, points: number) => void
+  onDeletePost?: (postId: string) => void
+  postActionPending?: boolean
+  postActionError?: string
+  postActionSuccess?: string
 }) {
+  const [deleteCandidate, setDeleteCandidate] = useState<string>()
+  const [rejectCandidate, setRejectCandidate] = useState<string>()
   return (
     <Page title={overview.group.name}>
       <p>{overview.group.description || 'Sem descrição'}</p>
@@ -495,6 +506,16 @@ export function GroupOverviewPage({
         </Tabs.Content>
         <Tabs.Content value="feed" className="grid min-w-0 gap-4">
           <h2 className="text-xl font-black">Feed do grupo</h2>
+          {postActionError && (
+            <p role="alert" className="text-sm font-bold text-red-700">
+              {postActionError}
+            </p>
+          )}
+          {postActionSuccess && (
+            <p role="status" className="text-sm font-bold">
+              {postActionSuccess}
+            </p>
+          )}
           {!overview.feed.length ? (
             <EmptyState
               title="Nenhuma atividade publicada"
@@ -539,7 +560,7 @@ export function GroupOverviewPage({
                         {post.status === 'approved'
                           ? `+${post.currentPoints} pontos`
                           : post.status === 'rejected'
-                            ? 'Não validado'
+                            ? 'Rejeitada pelo grupo'
                             : `Proposta: ${post.currentPoints} pts`}
                       </Badge>
                     </div>
@@ -558,6 +579,18 @@ export function GroupOverviewPage({
                       {post.matchingProposals} de {post.requiredVotes} membros
                       concordam com {post.currentPoints} pontos.
                     </p>
+                    <p className="text-sm">
+                      {post.rejections} de {post.requiredVotes} votos para
+                      rejeitar neste grupo.
+                    </p>
+                    {post.status === 'pending' &&
+                      post.hasVoted &&
+                      post.authorId !== currentUserId && (
+                        <p className="text-sm font-bold">
+                          Você votou por rejeitar. Uma nova proposta substitui
+                          seu voto enquanto a atividade estiver pendente.
+                        </p>
+                      )}
                     {post.status === 'pending' && onProposePostPoints && (
                       <form
                         className="grid grid-cols-[1fr_auto] gap-2"
@@ -566,7 +599,12 @@ export function GroupOverviewPage({
                           const value = Number(
                             new FormData(event.currentTarget).get('points'),
                           )
-                          if (Number.isInteger(value) && value > 0)
+                          if (
+                            !postActionPending &&
+                            Number.isInteger(value) &&
+                            value > 0 &&
+                            value <= 100000
+                          )
                             onProposePostPoints(post.id, value)
                         }}
                       >
@@ -580,9 +618,11 @@ export function GroupOverviewPage({
                           }
                           type="number"
                           min={1}
+                          max={100000}
+                          disabled={postActionPending}
                           defaultValue={post.currentPoints}
                         />
-                        <Button type="submit">
+                        <Button type="submit" disabled={postActionPending}>
                           {post.authorId === currentUserId
                             ? 'Contrapropor'
                             : 'Propor'}
@@ -592,15 +632,83 @@ export function GroupOverviewPage({
                     {post.status === 'pending' &&
                       post.authorId !== currentUserId &&
                       !post.hasVoted &&
-                      onVotePost && (
+                      onVotePost &&
+                      (rejectCandidate === post.id ? (
+                        <div className="grid gap-2">
+                          <p>
+                            Registrar voto de rejeição? Sua proposta de pontos
+                            deixa de contar. A rejeição exige maioria dos outros
+                            membros e vale só neste grupo.
+                          </p>
+                          <Button
+                            type="button"
+                            variant="danger"
+                            disabled={postActionPending}
+                            onClick={() => {
+                              onVotePost(post.id, 'rejected')
+                              setRejectCandidate(undefined)
+                            }}
+                          >
+                            Confirmar rejeição
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            disabled={postActionPending}
+                            onClick={() => setRejectCandidate(undefined)}
+                          >
+                            Voltar
+                          </Button>
+                        </div>
+                      ) : (
                         <Button
                           type="button"
                           variant="danger"
-                          onClick={() => onVotePost(post.id, 'rejected')}
+                          disabled={postActionPending}
+                          onClick={() => setRejectCandidate(post.id)}
                         >
-                          Não validar atividade
+                          Rejeitar atividade
                         </Button>
-                      )}
+                      ))}
+                    {post.authorId === currentUserId &&
+                      onDeletePost &&
+                      (deleteCandidate === post.id ? (
+                        <div className="border-subtle grid gap-2 border-t pt-3">
+                          <p>
+                            Excluir esta atividade de todos os grupos e do
+                            calendário? Os pontos que ela gerou serão removidos
+                            dos rankings. Esta ação não pode ser desfeita.
+                          </p>
+                          <Button
+                            type="button"
+                            variant="danger"
+                            disabled={postActionPending}
+                            onClick={() => {
+                              onDeletePost(post.id)
+                              setDeleteCandidate(undefined)
+                            }}
+                          >
+                            Confirmar exclusão
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            disabled={postActionPending}
+                            onClick={() => setDeleteCandidate(undefined)}
+                          >
+                            Manter atividade
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={postActionPending}
+                          onClick={() => setDeleteCandidate(post.id)}
+                        >
+                          Excluir atividade
+                        </Button>
+                      ))}
                   </div>
                 </Surface>
               ))}

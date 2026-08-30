@@ -35,8 +35,15 @@ describe('AppShell', () => {
         </QueryClientProvider>
       </MemoryRouter>,
     )
-    for (const name of ['Hoje', 'Grupo', 'Ranking', 'Calendário', 'Perfil'])
+    for (const name of ['Hoje', 'Grupo', 'Publicar', 'Calendário', 'Perfil'])
       expect(screen.getByRole('link', { name })).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Publicar' })).toHaveAttribute(
+      'href',
+      '/habitos/criar',
+    )
+    expect(
+      screen.getByRole('link', { name: 'Ranking dos desafios' }),
+    ).toHaveAttribute('href', '/ranking')
     expect(screen.queryByText(/7 dias/)).not.toBeInTheDocument()
   })
 })

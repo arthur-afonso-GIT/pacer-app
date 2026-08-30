@@ -34,6 +34,7 @@ import {
   useManageGroupMember,
   useVoteGroupPost,
   useProposeGroupPostPoints,
+  useDeleteGroupPost,
 } from '@/features/groups'
 
 function useGroupsRepository() {
@@ -81,6 +82,7 @@ export function GroupOverviewRoute() {
   const memberManagement = useManageGroupMember(repository, groupId)
   const postVote = useVoteGroupPost(repository, groupId)
   const pointProposal = useProposeGroupPostPoints(repository, groupId)
+  const postDeletion = useDeleteGroupPost(repository)
   if (overview.isLoading) return <p role="status">Carregando grupo…</p>
   if (overview.error || !overview.data) {
     return <p role="alert">Não foi possível carregar este grupo.</p>
@@ -99,6 +101,23 @@ export function GroupOverviewRoute() {
         memberManagement.mutate({ userId, remove: true })
       }
       onVotePost={(postId, decision) => postVote.mutate({ postId, decision })}
+      onDeletePost={(postId) => postDeletion.mutate(postId)}
+      postActionPending={
+        postVote.isPending || pointProposal.isPending || postDeletion.isPending
+      }
+      {...(postVote.error || pointProposal.error || postDeletion.error
+        ? {
+            postActionError:
+              'Não foi possível concluir a ação. Atualize o grupo e tente novamente; a atividade pode já ter sido resolvida ou excluída.',
+          }
+        : {})}
+      {...(postDeletion.isSuccess
+        ? {
+            postActionSuccess: postDeletion.data.photoRemoved
+              ? 'Atividade excluída de todos os grupos, do calendário e dos rankings.'
+              : 'Atividade e pontos excluídos. A limpeza do arquivo da foto falhou; avise o suporte.',
+          }
+        : {})}
       onProposePostPoints={(postId, points) =>
         pointProposal.mutate({ postId, points })
       }

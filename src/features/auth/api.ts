@@ -34,3 +34,21 @@ export async function signOut(client: Client | null = supabase) {
   const { error } = await configured(client).auth.signOut()
   if (error) throw error
 }
+
+export async function requestPasswordReset(
+  email: string,
+  client: Client | null = supabase,
+) {
+  const { error } = await configured(client).auth.resetPasswordForEmail(email, {
+    redirectTo: new URL('/redefinir-senha', window.location.origin).href,
+  })
+  if (error) throw error
+}
+
+export async function updatePassword(
+  password: string,
+  client: Client | null = supabase,
+) {
+  const { error } = await configured(client).auth.updateUser({ password })
+  if (error) throw error
+}

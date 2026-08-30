@@ -94,3 +94,19 @@ export const useProposeGroupPostPoints = (
       ]),
   })
 }
+
+export const useDeleteGroupPost = (
+  repo: Pick<GroupsRepository, 'deletePost'>,
+) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (postId: string) => repo.deletePost(postId),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['groups'] }),
+        qc.invalidateQueries({ queryKey: ['calendar'] }),
+        qc.invalidateQueries({ queryKey: ['today'] }),
+        qc.invalidateQueries({ queryKey: ['ranking'] }),
+      ]),
+  })
+}
