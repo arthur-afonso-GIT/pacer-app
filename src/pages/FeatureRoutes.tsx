@@ -9,11 +9,18 @@ import { supabase } from '@/infrastructure/supabase/client'
 import { useAuth } from '@/features/auth'
 import {
   ChallengeHomePage,
+  ChallengeHubPage,
+  CreateChallengeInvitePage,
   CreateChallengePage,
   CreateGlobalHabitPage,
   CreateHabitPage,
   createChallengesRepository,
   useActivateChallenge,
+  useChallengeHub,
+  useChallengeActivityFeed,
+  useCreateChallengeInvites,
+  useJoinChallenge,
+  useVoteChallengePost,
   useChallengeDetail,
 } from '@/features/challenges'
 import {
@@ -92,6 +99,8 @@ export function GroupOverviewRoute() {
   const postDeletion = useDeleteGroupPost(repository)
   const groupUpdate = useUpdateGroup(repository, groupId)
   const groupLeave = useLeaveGroup(repository, groupId)
+  const challengeRepository = useChallengesRepository()
+  const challengeJoin = useJoinChallenge(challengeRepository)
   if (overview.isLoading) return <p role="status">Carregando grupo…</p>
   if (overview.error || !overview.data) {
     return <p role="alert">Não foi possível carregar este grupo.</p>
@@ -113,6 +122,11 @@ export function GroupOverviewRoute() {
       onDeletePost={(postId) => postDeletion.mutate(postId)}
       onCreateActivity={() =>
         void navigate(`/habitos/criar?grupo=${encodeURIComponent(groupId)}`)
+      }
+      onJoinChallenge={(challengeId) =>
+        challengeJoin.mutate(challengeId, {
+          onSuccess: () => void navigate(`/desafio/${challengeId}`),
+        })
       }
       onUpdateGroup={(input) => groupUpdate.mutate(input)}
       onLeaveGroup={(successorId) =>
@@ -157,12 +171,68 @@ export function GroupOverviewRoute() {
         ? {
             onInvite: () => void navigate(`/grupo/${groupId}/convidar`),
             onCreateChallenge: () =>
-              void navigate(`/grupo/${groupId}/desafios/criar`),
+              void navigate(
+                `/desafios/criar?grupo=${encodeURIComponent(groupId)}`,
+              ),
           }
         : {})}
       onOpenChallenge={(challengeId) => {
         void navigate(`/desafio/${challengeId}`)
       }}
+    />
+  )
+}
+
+export function ChallengeHubRoute() {
+  const repository = useChallengesRepository()
+  const { user } = useAuth()
+  const challenges = useChallengeHub(repository, user?.id)
+  const joining = useJoinChallenge(repository)
+  const navigate = useNavigate()
+  return (
+    <ChallengeHubPage
+      challenges={challenges.data ?? []}
+      loading={challenges.isLoading}
+      {...(challenges.error
+        ? { error: 'Não foi possível carregar os desafios.' }
+        : {})}
+      {...(joining.variables ? { joiningId: joining.variables } : {})}
+      onCreate={() => void navigate('/desafios/criar')}
+      onOpen={(id) => void navigate(`/desafio/${id}`)}
+      onJoin={(id) =>
+        joining.mutate(id, {
+          onSuccess: () => void navigate(`/desafio/${id}`),
+        })
+      }
+    />
+  )
+}
+
+export function CreateChallengeInvitationRoute() {
+  const challengeRepository = useChallengesRepository()
+  const groupRepository = useGroupsRepository()
+  const { user } = useAuth()
+  const groups = useGroups(groupRepository, user?.id)
+  const creation = useCreateChallengeInvites(challengeRepository)
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const initialGroupId = searchParams.get('grupo')
+  return (
+    <CreateChallengeInvitePage
+      groups={groups.data ?? []}
+      initialGroupIds={initialGroupId ? [initialGroupId] : []}
+      submitting={creation.isPending}
+      {...(creation.error
+        ? { error: 'Não foi possível publicar o convite.' }
+        : {})}
+      onSubmit={(input) =>
+        creation.mutate(input, {
+          onSuccess: (ids) => {
+            const first = ids[0]
+            void navigate(first ? `/desafio/${first}` : '/desafios')
+          },
+        })
+      }
     />
   )
 }
@@ -242,8 +312,10 @@ export function CreateGlobalHabitRoute() {
   const groupsRepository = useGroupsRepository()
   const { user } = useAuth()
   const groups = useGroups(groupsRepository, user?.id)
+  const challenges = useChallengeHub(repository, user?.id)
   const [searchParams] = useSearchParams()
   const requestedGroupId = searchParams.get('grupo')
+  const requestedChallengeId = searchParams.get('desafio')
   return (
     <CreateGlobalHabitPage
       groups={groups.data ?? []}
@@ -252,6 +324,19 @@ export function CreateGlobalHabitRoute() {
         ? { groupsError: 'Não foi possível carregar seus grupos.' }
         : {})}
       initialGroupIds={requestedGroupId ? [requestedGroupId] : []}
+      {...(requestedChallengeId
+        ? { initialChallengeId: requestedChallengeId }
+        : {})}
+      challenges={(challenges.data ?? [])
+        .filter(
+          (challenge) =>
+            challenge.is_participant && challenge.status === 'active',
+        )
+        .map((challenge) => ({
+          challengeId: challenge.challenge_id,
+          name: challenge.name,
+          groupName: challenge.group_name,
+        }))}
       createHabit={(input) => repository.createGlobalHabit(input)}
     />
   )
@@ -263,6 +348,12 @@ export function ChallengeHomeRoute() {
   const navigate = useNavigate()
   const repository = useChallengesRepository()
   const activation = useActivateChallenge(repository)
+  const activityFeed = useChallengeActivityFeed(repository, challengeId)
+  const activityVote = useVoteChallengePost(
+    repository,
+    challengeId,
+    detail.data?.challenge.group_id ?? '',
+  )
   const { user } = useAuth()
   if (detail.isLoading) return <p role="status">Carregando desafio…</p>
   if (!detail.data) return <p role="alert">Desafio não encontrado.</p>
@@ -278,6 +369,11 @@ export function ChallengeHomeRoute() {
       reviewPolicy={detail.data.challenge.review_policy}
       status={detail.data.effectiveStatus}
       canManage={detail.data.challenge.created_by === user?.id}
+      activities={activityFeed.data ?? []}
+      {...(user ? { currentUserId: user.id } : {})}
+      onVoteActivity={(postId, decision) =>
+        activityVote.mutate({ postId, decision })
+      }
       publishing={activation.isPending}
       {...(activation.error
         ? { publishError: 'Não foi possível publicar o desafio.' }
@@ -285,6 +381,7 @@ export function ChallengeHomeRoute() {
       onPublish={() => activation.mutate(challengeId)}
       onNavigate={(destination) => {
         const paths = {
+          post: `/habitos/criar?desafio=${encodeURIComponent(challengeId)}`,
           submit: `/desafio/${challengeId}/registrar`,
           reviews: `/desafio/${challengeId}/revisoes`,
           ranking: `/desafio/${challengeId}/ranking`,

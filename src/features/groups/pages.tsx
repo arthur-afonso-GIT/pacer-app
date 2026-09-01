@@ -351,6 +351,7 @@ export function GroupOverviewPage({
   groupActionError,
   groupActionSuccess,
   onCreateActivity,
+  onJoinChallenge,
 }: {
   overview: GroupOverview
   onCreateChallenge?: () => void
@@ -372,6 +373,7 @@ export function GroupOverviewPage({
   groupActionError?: string
   groupActionSuccess?: string
   onCreateActivity?: () => void
+  onJoinChallenge?: (challengeId: string) => void
 }) {
   const [deleteCandidate, setDeleteCandidate] = useState<string>()
   const [rejectCandidate, setRejectCandidate] = useState<string>()
@@ -684,6 +686,38 @@ export function GroupOverviewPage({
               </Button>
             )}
           </div>
+          {(overview.challengeInvites ?? []).map((challenge) => (
+            <Surface
+              as="article"
+              variant="raised"
+              key={`challenge-${challenge.challenge_id}`}
+              className="grid gap-3 border-[var(--ds-color-accent)] p-4"
+            >
+              <div>
+                <Badge tone="success">Convite para desafio</Badge>
+                <h3 className="mt-2 text-lg font-black">{challenge.name}</h3>
+                {challenge.description && (
+                  <p className="text-secondary mt-1 text-sm">
+                    {challenge.description}
+                  </p>
+                )}
+              </div>
+              <p className="text-secondary text-xs font-bold">
+                {challenge.participant_count} participantes · prazo{' '}
+                {new Intl.DateTimeFormat('pt-BR').format(
+                  new Date(challenge.ends_at),
+                )}
+              </p>
+              {onJoinChallenge && (
+                <Button
+                  type="button"
+                  onClick={() => onJoinChallenge(challenge.challenge_id)}
+                >
+                  Entrar no desafio
+                </Button>
+              )}
+            </Surface>
+          ))}
           {postActionError && (
             <p role="alert" className="text-sm font-bold text-red-700">
               {postActionError}

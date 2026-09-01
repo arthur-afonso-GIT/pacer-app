@@ -2,6 +2,7 @@ import {
   ArrowLeft,
   Bell,
   CalendarDays,
+  Flag,
   Home,
   Plus,
   Trophy,
@@ -76,9 +77,16 @@ export function AppShell() {
           </Link>
         )}
         <Link
+          to="/desafios"
+          aria-label="Desafios"
+          className="text-secondary ml-auto grid size-11 place-items-center"
+        >
+          <Flag aria-hidden size={21} />
+        </Link>
+        <Link
           to="/ranking"
           aria-label="Ranking dos desafios"
-          className="text-secondary mr-3 ml-auto grid size-11 place-items-center"
+          className="text-secondary mr-1 grid size-11 place-items-center"
         >
           <Trophy aria-hidden size={21} />
         </Link>

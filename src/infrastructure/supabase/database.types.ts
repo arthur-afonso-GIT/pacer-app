@@ -269,7 +269,9 @@ export type Database = {
           group_id: string
           id: string
           name: string
+          participation_mode: string
           review_policy: Database['public']['Enums']['review_policy']
+          series_id: string | null
           starts_at: string
           status: Database['public']['Enums']['challenge_status']
           updated_at: string
@@ -282,7 +284,9 @@ export type Database = {
           group_id: string
           id?: string
           name: string
+          participation_mode?: string
           review_policy?: Database['public']['Enums']['review_policy']
+          series_id?: string | null
           starts_at: string
           status?: Database['public']['Enums']['challenge_status']
           updated_at?: string
@@ -295,7 +299,9 @@ export type Database = {
           group_id?: string
           id?: string
           name?: string
+          participation_mode?: string
           review_policy?: Database['public']['Enums']['review_policy']
+          series_id?: string | null
           starts_at?: string
           status?: Database['public']['Enums']['challenge_status']
           updated_at?: string
@@ -884,6 +890,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_challenge_activity_post: {
+        Args: {
+          p_challenge_id: string
+          p_name: string
+          p_photo_path: string
+          p_suggested_points: number
+        }
+        Returns: string
+      }
+      create_group_challenge_invites: {
+        Args: {
+          p_description: string
+          p_ends_at: string
+          p_group_ids: string[]
+          p_name: string
+          p_review_policy?: Database['public']['Enums']['review_policy']
+          p_starts_at: string
+        }
+        Returns: string[]
+      }
       create_activity_post: {
         Args: {
           p_name: string
@@ -1010,6 +1036,38 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_my_challenge_hub: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          challenge_id: string
+          description: string | null
+          ends_at: string
+          group_id: string
+          group_name: string
+          is_creator: boolean
+          is_participant: boolean
+          name: string
+          participant_count: number
+          participation_mode: string
+          series_id: string | null
+          starts_at: string
+          status: Database['public']['Enums']['challenge_status']
+        }[]
+      }
+      get_my_weekly_consistency: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active_days: number
+          approved_activities: number
+          current_streak: number
+          group_id: string
+          group_name: string
+          net_points: number
+          timezone: string
+          week_end: string
+          week_start: string
+        }[]
+      }
       get_group_feed: {
         Args: { p_group_id: string }
         Returns: {
@@ -1041,6 +1099,24 @@ export type Database = {
           occurred_at: string
           points: number | null
           post_id: string
+        }[]
+      }
+      get_challenge_activity_feed: {
+        Args: { p_challenge_id: string }
+        Returns: {
+          activity_name: string
+          approvals: number
+          author_avatar_url: string | null
+          author_id: string
+          author_name: string
+          created_at: string
+          has_voted: boolean
+          photo_path: string
+          post_id: string
+          rejections: number
+          required_votes: number
+          status: string
+          suggested_points: number
         }[]
       }
       get_group_leaderboard: {
@@ -1082,6 +1158,10 @@ export type Database = {
           submitter_id: string
           updated_at: string
         }[]
+      }
+      join_group_challenge: {
+        Args: { p_challenge_id: string }
+        Returns: Database['public']['Tables']['challenge_members']['Row']
       }
       is_active_group_member: { Args: { p_group_id: string }; Returns: boolean }
       is_challenge_member: {

@@ -15,7 +15,8 @@ describe('ChallengeHomePage', () => {
     )
 
     for (const label of [
-      'Registrar atividade',
+      'Publicar atividade com foto',
+      'Registrar hábito do desafio',
       'Revisar atividades',
       'Ver ranking',
     ]) {

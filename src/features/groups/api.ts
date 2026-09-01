@@ -13,7 +13,10 @@ export interface GroupOverview {
   challenges: Tables<'challenges'>[]
   feed: GroupFeedPost[]
   leaderboard: GroupLeaderboardEntry[]
+  challengeInvites?: GroupChallengeInvite[]
 }
+export type GroupChallengeInvite =
+  Database['public']['Functions']['get_my_challenge_hub']['Returns'][number]
 export type GroupLeaderboardEntry =
   Database['public']['Functions']['get_group_leaderboard']['Returns'][number]
 export interface GroupFeedPost {
@@ -102,29 +105,38 @@ export const createGroupsRepository = (client: SupabaseClient<Database>) => ({
     return result(data, error)
   },
   async overview(groupId: string): Promise<GroupOverview> {
-    const [group, members, challenges, feed, leaderboard, history] =
-      await Promise.all([
-        client.from('groups').select('*').eq('id', groupId).single(),
-        client
-          .from('group_members')
-          .select('*, profiles(display_name, avatar_url)')
-          .eq('group_id', groupId)
-          .eq('status', 'active'),
-        client
-          .from('challenges')
-          .select('*')
-          .eq('group_id', groupId)
-          .order('starts_at'),
-        client.rpc('get_group_feed', { p_group_id: groupId }),
-        client.rpc('get_group_leaderboard', { p_group_id: groupId }),
-        client.rpc('get_group_activity_history', { p_group_id: groupId }),
-      ])
+    const [
+      group,
+      members,
+      challenges,
+      feed,
+      leaderboard,
+      history,
+      challengeHub,
+    ] = await Promise.all([
+      client.from('groups').select('*').eq('id', groupId).single(),
+      client
+        .from('group_members')
+        .select('*, profiles(display_name, avatar_url)')
+        .eq('group_id', groupId)
+        .eq('status', 'active'),
+      client
+        .from('challenges')
+        .select('*')
+        .eq('group_id', groupId)
+        .order('starts_at'),
+      client.rpc('get_group_feed', { p_group_id: groupId }),
+      client.rpc('get_group_leaderboard', { p_group_id: groupId }),
+      client.rpc('get_group_activity_history', { p_group_id: groupId }),
+      client.rpc('get_my_challenge_hub'),
+    ])
     if (group.error) throw group.error
     if (members.error) throw members.error
     if (challenges.error) throw challenges.error
     if (feed.error) throw feed.error
     if (leaderboard.error) throw leaderboard.error
     if (history.error) throw history.error
+    if (challengeHub.error) throw challengeHub.error
     const historyByPost = new Map<string, GroupActivityEvent[]>()
     for (const event of history.data) {
       if (
@@ -209,6 +221,12 @@ export const createGroupsRepository = (client: SupabaseClient<Database>) => ({
       challenges: challenges.data,
       feed: feedWithUrls,
       leaderboard: leaderboard.data,
+      challengeInvites: challengeHub.data.filter(
+        (item) =>
+          item.group_id === groupId &&
+          item.participation_mode === 'opt_in' &&
+          !item.is_participant,
+      ),
     }
   },
   async createInvite(input: CreateInviteInput): Promise<string> {

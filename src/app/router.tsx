@@ -12,6 +12,8 @@ type FeatureRouteName =
   | 'CreateInviteRoute'
   | 'GroupOverviewRoute'
   | 'CreateChallengeRoute'
+  | 'ChallengeHubRoute'
+  | 'CreateChallengeInvitationRoute'
   | 'ChallengeHomeRoute'
   | 'CreateHabitRoute'
   | 'CreateGlobalHabitRoute'
@@ -76,6 +78,11 @@ const router = createBrowserRouter([
             lazy: () => feature('CreateGlobalHabitRoute'),
           },
           { path: 'grupo', lazy: () => feature('GroupsRoute') },
+          { path: 'desafios', lazy: () => feature('ChallengeHubRoute') },
+          {
+            path: 'desafios/criar',
+            lazy: () => feature('CreateChallengeInvitationRoute'),
+          },
           { path: 'grupo/criar', lazy: () => feature('CreateGroupRoute') },
           { path: 'grupo/entrar', lazy: () => feature('JoinGroupRoute') },
           { path: 'grupo/:groupId', lazy: () => feature('GroupOverviewRoute') },

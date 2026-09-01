@@ -3,6 +3,7 @@ import { supabase } from '@/infrastructure/supabase/client'
 import { getPeriodRange, type RankingPeriod } from '@/features/rankings/ranking'
 import { deriveStatistics } from './statistics'
 import { currentDateInTimezone, deriveActivityConsistency } from './consistency'
+import type { WeeklyConsistency } from './weekly'
 
 export interface StatisticsQueryInput {
   challengeId: string
@@ -77,3 +78,29 @@ export const activityConsistencyOptions = (
 export const useActivityConsistency = (
   input: Omit<StatisticsQueryInput, 'period'>,
 ) => useQuery(activityConsistencyOptions(input))
+
+export const weeklyConsistencyOptions = (userId: string) =>
+  queryOptions({
+    queryKey: ['weekly-consistency', userId],
+    enabled: Boolean(userId),
+    queryFn: async (): Promise<WeeklyConsistency[]> => {
+      if (!supabase) throw new Error('Supabase não está configurado.')
+      const { data, error } = await supabase.rpc('get_my_weekly_consistency')
+      if (error) throw error
+      return data.map((row) => ({
+        groupId: row.group_id,
+        groupName: row.group_name,
+        timezone: row.timezone,
+        weekStart: row.week_start,
+        weekEnd: row.week_end,
+        activeDays: row.active_days,
+        approvedActivities: row.approved_activities,
+        netPoints: row.net_points,
+        currentStreak: row.current_streak,
+      }))
+    },
+    staleTime: 30_000,
+  })
+
+export const useWeeklyConsistency = (userId: string) =>
+  useQuery(weeklyConsistencyOptions(userId))

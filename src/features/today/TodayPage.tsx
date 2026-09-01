@@ -10,6 +10,11 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, EmptyState, Skeleton, Surface } from '@/design-system'
 import { useAuth } from '@/features/auth'
+import {
+  WeeklyConsistencySummary,
+  type WeeklyConsistency,
+  useWeeklyConsistency,
+} from '@/features/statistics'
 import { supabase } from '@/infrastructure/supabase/client'
 import { copy } from '@/shared/i18n/pt-BR'
 import {
@@ -114,6 +119,8 @@ export function TodayView({
   onSubmit,
   onReadNotification,
   onOpenNotifications,
+  weeklyConsistency = [],
+  weeklyConsistencyLoading = false,
 }: {
   dashboard?: TodayDashboard
   loading?: boolean
@@ -125,6 +132,8 @@ export function TodayView({
   onSubmit: (challengeId: string) => void
   onReadNotification?: (notificationId: string) => void
   onOpenNotifications?: () => void
+  weeklyConsistency?: readonly WeeklyConsistency[]
+  weeklyConsistencyLoading?: boolean
 }) {
   return (
     <section className="mx-auto grid w-full max-w-xl gap-7 py-6">
@@ -147,6 +156,14 @@ export function TodayView({
           </Button>
         )}
       </header>
+
+      {weeklyConsistencyLoading ? (
+        <div aria-label="Carregando resumo da semana">
+          <Skeleton height={178} className="w-full rounded-2xl" />
+        </div>
+      ) : (
+        <WeeklyConsistencySummary summaries={weeklyConsistency} />
+      )}
 
       {loading ? (
         <div className="grid gap-4" aria-label="Carregando seu dia">
@@ -261,6 +278,7 @@ export function TodayRoute() {
     return createTodayRepository(supabase)
   }, [])
   const dashboard = useTodayDashboard(repository, user?.id ?? '')
+  const weeklyConsistency = useWeeklyConsistency(user?.id ?? '')
   const markRead = useMarkNotificationRead(repository, user?.id ?? '')
 
   return (
@@ -277,6 +295,8 @@ export function TodayRoute() {
       onSubmit={(id) => void navigate(`/desafio/${id}/registrar`)}
       onReadNotification={(id) => markRead.mutate(id)}
       onOpenNotifications={() => void navigate('/notificacoes')}
+      weeklyConsistency={weeklyConsistency.data ?? []}
+      weeklyConsistencyLoading={weeklyConsistency.isLoading}
     />
   )
 }

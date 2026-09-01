@@ -1,6 +1,8 @@
 import { Badge, Button, Surface } from '@/design-system'
+import type { ChallengeActivityPost } from './api'
 
-export type ChallengeDestination = 'submit' | 'reviews' | 'ranking' | 'habit'
+export type ChallengeDestination =
+  'post' | 'submit' | 'reviews' | 'ranking' | 'habit'
 
 interface ChallengeHomePageProps {
   name: string
@@ -21,6 +23,9 @@ interface ChallengeHomePageProps {
   publishing?: boolean
   publishError?: string
   onPublish?: () => void
+  activities?: readonly ChallengeActivityPost[]
+  currentUserId?: string
+  onVoteActivity?: (postId: string, decision: 'approved' | 'rejected') => void
   onNavigate: (destination: ChallengeDestination) => void
 }
 
@@ -29,7 +34,16 @@ const actions: {
   label: string
   variant: 'primary' | 'secondary' | 'ghost'
 }[] = [
-  { destination: 'submit', label: 'Registrar atividade', variant: 'primary' },
+  {
+    destination: 'post',
+    label: 'Publicar atividade com foto',
+    variant: 'primary',
+  },
+  {
+    destination: 'submit',
+    label: 'Registrar hábito do desafio',
+    variant: 'secondary',
+  },
   { destination: 'reviews', label: 'Revisar atividades', variant: 'secondary' },
   { destination: 'ranking', label: 'Ver ranking', variant: 'secondary' },
   { destination: 'habit', label: 'Adicionar hábito', variant: 'ghost' },
@@ -70,6 +84,9 @@ export function ChallengeHomePage({
   publishing = false,
   publishError,
   onPublish,
+  activities = [],
+  currentUserId,
+  onVoteActivity,
   onNavigate,
 }: ChallengeHomePageProps) {
   const visibleActions = actions.filter((action) => {
@@ -195,6 +212,76 @@ export function ChallengeHomePage({
             </Button>
           ))}
         </Surface>
+      )}
+      {status === 'active' && (
+        <section className="grid gap-3" aria-labelledby="challenge-feed-title">
+          <h2 id="challenge-feed-title" className="text-xl font-black">
+            Feed do desafio
+          </h2>
+          {activities.length ? (
+            activities.map((activity) => (
+              <Surface
+                as="article"
+                variant="raised"
+                key={activity.id}
+                className="overflow-hidden"
+              >
+                {activity.photoUrl && (
+                  <img
+                    src={activity.photoUrl}
+                    alt={`Registro de ${activity.activityName}`}
+                    className="aspect-square w-full object-cover"
+                  />
+                )}
+                <div className="grid gap-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-secondary text-xs font-bold">
+                        {activity.authorName}
+                      </p>
+                      <h3 className="font-black">{activity.activityName}</h3>
+                    </div>
+                    <Badge>{activity.suggestedPoints} pts</Badge>
+                  </div>
+                  <p className="text-secondary text-xs">
+                    {activity.approvals}/{activity.requiredVotes} validações ·{' '}
+                    {activity.rejections} rejeições
+                  </p>
+                  {activity.status === 'pending' &&
+                    !activity.hasVoted &&
+                    activity.authorId !== currentUserId &&
+                    onVoteActivity && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          type="button"
+                          onClick={() =>
+                            onVoteActivity(activity.id, 'approved')
+                          }
+                        >
+                          Validar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="danger"
+                          onClick={() =>
+                            onVoteActivity(activity.id, 'rejected')
+                          }
+                        >
+                          Rejeitar
+                        </Button>
+                      </div>
+                    )}
+                </div>
+              </Surface>
+            ))
+          ) : (
+            <Surface className="p-4">
+              <p className="text-secondary text-sm">
+                Nenhuma atividade foi publicada neste desafio ainda.
+              </p>
+            </Surface>
+          )}
+        </section>
       )}
     </section>
   )

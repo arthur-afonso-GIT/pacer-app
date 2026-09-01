@@ -1,5 +1,7 @@
 export * from './api'
 export * from './ChallengeHomePage'
+export * from './ChallengeHubPage'
+export * from './CreateChallengeInvitePage'
 export * from './detail'
 export * from './hooks'
 export * from './pages'

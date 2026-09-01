@@ -228,12 +228,20 @@ export function CreateGlobalHabitPage({
   groupsLoading = false,
   groupsError,
   initialGroupIds = [],
+  challenges = [],
+  initialChallengeId,
 }: {
   createHabit: (input: CreateGlobalHabitInput) => Promise<GlobalHabitResult>
   groups: { id: string; name: string; description: string | null }[]
   groupsLoading?: boolean
   groupsError?: string
   initialGroupIds?: string[]
+  challenges?: Array<{
+    challengeId: string
+    name: string
+    groupName: string
+  }>
+  initialChallengeId?: string
 }) {
   const queryClient = useQueryClient()
   const mutation = useMutation({
@@ -249,6 +257,10 @@ export function CreateGlobalHabitPage({
   const [photoError, setPhotoError] = useState<string>()
   const [groupError, setGroupError] = useState<string>()
   const [groupSearch, setGroupSearch] = useState('')
+  const [destinationType, setDestinationType] = useState<
+    'groups' | 'challenge'
+  >(initialChallengeId ? 'challenge' : 'groups')
+  const [challengeId, setChallengeId] = useState(initialChallengeId ?? '')
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(() =>
     initialGroupIds.filter((id) => groups.some((group) => group.id === id)),
   )
@@ -278,15 +290,20 @@ export function CreateGlobalHabitPage({
       setPhotoError('Adicione uma foto da atividade.')
       return
     }
-    if (!selectedGroupIds.length) {
+    if (destinationType === 'groups' && !selectedGroupIds.length) {
       setGroupError('Escolha pelo menos um grupo.')
+      return
+    }
+    if (destinationType === 'challenge' && !challengeId) {
+      setGroupError('Escolha um desafio.')
       return
     }
     mutation.mutate({
       name: value.name,
       points: value.points,
       photo,
-      groupIds: selectedGroupIds,
+      groupIds: destinationType === 'groups' ? selectedGroupIds : [],
+      ...(destinationType === 'challenge' ? { challengeId } : {}),
     })
   }
   const visibleGroups = groups.filter((group) => {
@@ -361,9 +378,64 @@ export function CreateGlobalHabitPage({
           {...fieldError(errors.points?.message)}
           {...register('points', { valueAsNumber: true })}
         />
+        <fieldset className="grid gap-2">
+          <legend className="ds-label">Tipo de publicação</legend>
+          <div className="bg-surface-subtle grid grid-cols-2 gap-1 rounded-xl p-1">
+            <button
+              type="button"
+              aria-pressed={destinationType === 'groups'}
+              className={`min-h-11 rounded-lg text-sm font-bold ${destinationType === 'groups' ? 'bg-surface text-accent shadow-sm' : 'text-secondary'}`}
+              onClick={() => {
+                setDestinationType('groups')
+                setGroupError(undefined)
+              }}
+            >
+              Grupo(s)
+            </button>
+            <button
+              type="button"
+              aria-pressed={destinationType === 'challenge'}
+              className={`min-h-11 rounded-lg text-sm font-bold ${destinationType === 'challenge' ? 'bg-surface text-accent shadow-sm' : 'text-secondary'}`}
+              onClick={() => {
+                setDestinationType('challenge')
+                setGroupError(undefined)
+              }}
+            >
+              Desafio
+            </button>
+          </div>
+        </fieldset>
         <fieldset className="grid gap-3">
-          <legend className="ds-label">Publicar em</legend>
-          {groupsLoading ? (
+          <legend className="ds-label">
+            {destinationType === 'groups' ? 'Publicar em' : 'Desafio escolhido'}
+          </legend>
+          {destinationType === 'challenge' ? (
+            challenges.length ? (
+              <select
+                className="ds-input"
+                aria-label="Escolher desafio"
+                value={challengeId}
+                onChange={(event) => {
+                  setChallengeId(event.target.value)
+                  setGroupError(undefined)
+                }}
+              >
+                <option value="">Selecione um desafio</option>
+                {challenges.map((challenge) => (
+                  <option
+                    key={challenge.challengeId}
+                    value={challenge.challengeId}
+                  >
+                    {challenge.name} · {challenge.groupName}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p role="alert" className="text-sm text-red-700">
+                Entre em um desafio ativo antes de publicar nele.
+              </p>
+            )
+          ) : groupsLoading ? (
             <p role="status">Carregando grupos…</p>
           ) : groupsError ? (
             <p role="alert" className="text-sm text-red-700">
@@ -445,9 +517,13 @@ export function CreateGlobalHabitPage({
           )}
         </fieldset>
         <Button type="submit" fullWidth loading={mutation.isPending}>
-          {selectedGroupIds.length
-            ? `Publicar em ${selectedGroupIds.length} grupo${selectedGroupIds.length === 1 ? '' : 's'}`
-            : 'Escolha os grupos'}
+          {destinationType === 'challenge'
+            ? challengeId
+              ? 'Publicar no desafio'
+              : 'Escolha um desafio'
+            : selectedGroupIds.length
+              ? `Publicar em ${selectedGroupIds.length} grupo${selectedGroupIds.length === 1 ? '' : 's'}`
+              : 'Escolha os grupos'}
         </Button>
         {mutation.error && (
           <p role="alert">
@@ -459,8 +535,9 @@ export function CreateGlobalHabitPage({
         {mutation.data && (
           <Surface variant="subtle" className="p-4" aria-live="polite">
             <p role="status" className="font-bold">
-              Atividade publicada em {selectedGroupIds.length} grupo
-              {selectedGroupIds.length === 1 ? '' : 's'}.
+              {destinationType === 'challenge'
+                ? 'Atividade publicada no desafio.'
+                : `Atividade publicada em ${selectedGroupIds.length} grupo${selectedGroupIds.length === 1 ? '' : 's'}.`}
             </p>
             <p className="text-secondary mt-1 text-sm">
               A pontuação ficará pendente até a maioria validar.
