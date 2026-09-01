@@ -29,6 +29,7 @@ export interface CreateGlobalHabitInput {
   name: string
   points: number
   photo: File
+  groupIds: string[]
 }
 export interface GlobalHabitResult {
   postId: string
@@ -96,11 +97,15 @@ export const createChallengesRepository = (
       .from('activity-posts')
       .upload(photoPath, input.photo, { contentType: input.photo.type })
     if (uploaded.error) throw uploaded.error
-    const { data, error } = await client.rpc('create_activity_post', {
-      p_name: input.name,
-      p_suggested_points: input.points,
-      p_photo_path: photoPath,
-    })
+    const { data, error } = await client.rpc(
+      'create_activity_post_for_groups',
+      {
+        p_name: input.name,
+        p_suggested_points: input.points,
+        p_photo_path: photoPath,
+        p_group_ids: input.groupIds,
+      },
+    )
     if (error) {
       await client.storage.from('activity-posts').remove([photoPath])
       throw error

@@ -58,6 +58,41 @@ export const useManageGroupMember = (
   })
 }
 
+export const useUpdateGroup = (
+  repo: Pick<GroupsRepository, 'updateGroup'>,
+  groupId: string,
+) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateGroupInput) =>
+      repo.updateGroup({ ...input, groupId }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: groupKeys.detail(groupId) }),
+        qc.invalidateQueries({ queryKey: groupKeys.all }),
+      ]),
+  })
+}
+
+export const useLeaveGroup = (
+  repo: Pick<GroupsRepository, 'leaveGroup'>,
+  groupId: string,
+) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (successorId?: string) => repo.leaveGroup(groupId, successorId),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: groupKeys.detail(groupId) })
+      return Promise.all([
+        qc.invalidateQueries({ queryKey: groupKeys.all }),
+        qc.invalidateQueries({ queryKey: ['today'] }),
+        qc.invalidateQueries({ queryKey: ['calendar'] }),
+        qc.invalidateQueries({ queryKey: ['ranking'] }),
+      ])
+    },
+  })
+}
+
 export const useVoteGroupPost = (
   repo: Pick<GroupsRepository, 'votePost'>,
   groupId: string,

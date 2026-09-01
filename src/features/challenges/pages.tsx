@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Camera, ImagePlus } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Button, Input, Surface, Textarea } from '@/design-system'
 import type {
@@ -224,8 +224,16 @@ export function CreateHabitPage({
 
 export function CreateGlobalHabitPage({
   createHabit,
+  groups,
+  groupsLoading = false,
+  groupsError,
+  initialGroupIds = [],
 }: {
   createHabit: (input: CreateGlobalHabitInput) => Promise<GlobalHabitResult>
+  groups: { id: string; name: string; description: string | null }[]
+  groupsLoading?: boolean
+  groupsError?: string
+  initialGroupIds?: string[]
 }) {
   const queryClient = useQueryClient()
   const mutation = useMutation({
@@ -239,6 +247,19 @@ export function CreateGlobalHabitPage({
   })
   const [photo, setPhoto] = useState<File>()
   const [photoError, setPhotoError] = useState<string>()
+  const [groupError, setGroupError] = useState<string>()
+  const [groupSearch, setGroupSearch] = useState('')
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(() =>
+    initialGroupIds.filter((id) => groups.some((group) => group.id === id)),
+  )
+  const initialSelectionApplied = useRef(false)
+  useEffect(() => {
+    if (initialSelectionApplied.current || !groups.length) return
+    initialSelectionApplied.current = true
+    setSelectedGroupIds(
+      initialGroupIds.filter((id) => groups.some((group) => group.id === id)),
+    )
+  }, [groups, initialGroupIds])
   const {
     register,
     handleSubmit,
@@ -257,16 +278,33 @@ export function CreateGlobalHabitPage({
       setPhotoError('Adicione uma foto da atividade.')
       return
     }
-    mutation.mutate({ name: value.name, points: value.points, photo })
+    if (!selectedGroupIds.length) {
+      setGroupError('Escolha pelo menos um grupo.')
+      return
+    }
+    mutation.mutate({
+      name: value.name,
+      points: value.points,
+      photo,
+      groupIds: selectedGroupIds,
+    })
   }
+  const visibleGroups = groups.filter((group) => {
+    const query = groupSearch.trim().toLocaleLowerCase('pt-BR')
+    return (
+      !query ||
+      group.name.toLocaleLowerCase('pt-BR').includes(query) ||
+      group.description?.toLocaleLowerCase('pt-BR').includes(query)
+    )
+  })
 
   return (
     <Page title="Publicar atividade">
       <Surface variant="subtle" className="grid gap-2 p-4 text-sm">
-        <p className="font-bold">Um post, todos os seus grupos</p>
+        <p className="font-bold">Um post, os grupos que você escolher</p>
         <p className="text-secondary">
-          Sua foto será publicada no feed de todos os grupos dos quais você
-          participa. Cada grupo valida os pontos por maioria.
+          Como ao encaminhar uma mensagem, escolha um ou vários destinos. Cada
+          grupo negocia e valida os pontos separadamente.
         </p>
       </Surface>
       <form
@@ -323,8 +361,93 @@ export function CreateGlobalHabitPage({
           {...fieldError(errors.points?.message)}
           {...register('points', { valueAsNumber: true })}
         />
+        <fieldset className="grid gap-3">
+          <legend className="ds-label">Publicar em</legend>
+          {groupsLoading ? (
+            <p role="status">Carregando grupos…</p>
+          ) : groupsError ? (
+            <p role="alert" className="text-sm text-red-700">
+              {groupsError}
+            </p>
+          ) : groups.length === 0 ? (
+            <p role="alert" className="text-sm text-red-700">
+              Entre em um grupo antes de publicar uma atividade.
+            </p>
+          ) : (
+            <>
+              <Input
+                label="Buscar grupo"
+                type="search"
+                value={groupSearch}
+                onChange={(event) => setGroupSearch(event.target.value)}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <strong className="text-sm">
+                  {selectedGroupIds.length} selecionado
+                  {selectedGroupIds.length === 1 ? '' : 's'}
+                </strong>
+                <button
+                  type="button"
+                  className="text-accent min-h-11 px-2 text-sm font-bold"
+                  onClick={() => {
+                    setSelectedGroupIds(
+                      selectedGroupIds.length === groups.length
+                        ? []
+                        : groups.map((group) => group.id),
+                    )
+                    setGroupError(undefined)
+                  }}
+                >
+                  {selectedGroupIds.length === groups.length
+                    ? 'Limpar seleção'
+                    : 'Selecionar todos'}
+                </button>
+              </div>
+              <div className="border-subtle grid max-h-64 gap-1 overflow-y-auto rounded-2xl border p-2">
+                {visibleGroups.length ? (
+                  visibleGroups.map((group) => (
+                    <label
+                      key={group.id}
+                      aria-label={`Selecionar grupo ${group.name}`}
+                      className="hover:bg-accent-soft flex min-h-14 cursor-pointer items-center gap-3 rounded-xl p-2"
+                    >
+                      <input
+                        type="checkbox"
+                        className="size-5"
+                        checked={selectedGroupIds.includes(group.id)}
+                        onChange={(event) => {
+                          setSelectedGroupIds((current) =>
+                            event.target.checked
+                              ? [...current, group.id]
+                              : current.filter((id) => id !== group.id),
+                          )
+                          setGroupError(undefined)
+                        }}
+                      />
+                      <span className="min-w-0">
+                        <strong className="block truncate">{group.name}</strong>
+                        <span className="text-secondary block truncate text-xs">
+                          {group.description || 'Sem descrição'}
+                        </span>
+                      </span>
+                    </label>
+                  ))
+                ) : (
+                  <p className="p-3 text-sm">Nenhum grupo encontrado.</p>
+                )}
+              </div>
+            </>
+          )}
+          {groupError && (
+            <p role="alert" className="text-sm text-red-700">
+              {groupError}
+            </p>
+          )}
+        </fieldset>
         <Button type="submit" fullWidth loading={mutation.isPending}>
-          Publicar em todos os grupos
+          {selectedGroupIds.length
+            ? `Publicar em ${selectedGroupIds.length} grupo${selectedGroupIds.length === 1 ? '' : 's'}`
+            : 'Escolha os grupos'}
         </Button>
         {mutation.error && (
           <p role="alert">
@@ -336,7 +459,8 @@ export function CreateGlobalHabitPage({
         {mutation.data && (
           <Surface variant="subtle" className="p-4" aria-live="polite">
             <p role="status" className="font-bold">
-              Atividade publicada nos seus grupos.
+              Atividade publicada em {selectedGroupIds.length} grupo
+              {selectedGroupIds.length === 1 ? '' : 's'}.
             </p>
             <p className="text-secondary mt-1 text-sm">
               A pontuação ficará pendente até a maioria validar.

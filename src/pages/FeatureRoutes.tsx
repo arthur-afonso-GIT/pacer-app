@@ -1,5 +1,10 @@
 import { useMemo } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import {
+  Navigate,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
 import { supabase } from '@/infrastructure/supabase/client'
 import { useAuth } from '@/features/auth'
 import {
@@ -35,6 +40,8 @@ import {
   useVoteGroupPost,
   useProposeGroupPostPoints,
   useDeleteGroupPost,
+  useUpdateGroup,
+  useLeaveGroup,
 } from '@/features/groups'
 
 function useGroupsRepository() {
@@ -83,6 +90,8 @@ export function GroupOverviewRoute() {
   const postVote = useVoteGroupPost(repository, groupId)
   const pointProposal = useProposeGroupPostPoints(repository, groupId)
   const postDeletion = useDeleteGroupPost(repository)
+  const groupUpdate = useUpdateGroup(repository, groupId)
+  const groupLeave = useLeaveGroup(repository, groupId)
   if (overview.isLoading) return <p role="status">Carregando grupo…</p>
   if (overview.error || !overview.data) {
     return <p role="alert">Não foi possível carregar este grupo.</p>
@@ -102,6 +111,25 @@ export function GroupOverviewRoute() {
       }
       onVotePost={(postId, decision) => postVote.mutate({ postId, decision })}
       onDeletePost={(postId) => postDeletion.mutate(postId)}
+      onCreateActivity={() =>
+        void navigate(`/habitos/criar?grupo=${encodeURIComponent(groupId)}`)
+      }
+      onUpdateGroup={(input) => groupUpdate.mutate(input)}
+      onLeaveGroup={(successorId) =>
+        groupLeave.mutate(successorId, {
+          onSuccess: () => void navigate('/grupo', { replace: true }),
+        })
+      }
+      groupActionPending={groupUpdate.isPending || groupLeave.isPending}
+      {...(groupUpdate.error || groupLeave.error
+        ? {
+            groupActionError:
+              'Não foi possível concluir. Atualize o grupo e tente novamente.',
+          }
+        : {})}
+      {...(groupUpdate.isSuccess
+        ? { groupActionSuccess: 'Dados do grupo atualizados.' }
+        : {})}
       postActionPending={
         postVote.isPending || pointProposal.isPending || postDeletion.isPending
       }
@@ -211,8 +239,19 @@ export function CreateHabitRoute() {
 
 export function CreateGlobalHabitRoute() {
   const repository = useChallengesRepository()
+  const groupsRepository = useGroupsRepository()
+  const { user } = useAuth()
+  const groups = useGroups(groupsRepository, user?.id)
+  const [searchParams] = useSearchParams()
+  const requestedGroupId = searchParams.get('grupo')
   return (
     <CreateGlobalHabitPage
+      groups={groups.data ?? []}
+      groupsLoading={groups.isLoading}
+      {...(groups.error
+        ? { groupsError: 'Não foi possível carregar seus grupos.' }
+        : {})}
+      initialGroupIds={requestedGroupId ? [requestedGroupId] : []}
       createHabit={(input) => repository.createGlobalHabit(input)}
     />
   )

@@ -11,7 +11,11 @@ const isIanaTimezone = (value: string) => {
 
 export const groupSchema = z.object({
   name: z.string().trim().min(2, 'Informe pelo menos 2 caracteres').max(80),
-  description: z.string().trim().max(500),
+  description: z
+    .string()
+    .trim()
+    .min(3, 'Descreva o propósito do grupo em pelo menos 3 caracteres')
+    .max(1000, 'A descrição deve ter no máximo 1000 caracteres'),
   timezone: z
     .string()
     .trim()

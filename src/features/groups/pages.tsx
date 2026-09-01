@@ -340,6 +340,12 @@ export function GroupOverviewPage({
   postActionPending = false,
   postActionError,
   postActionSuccess,
+  onUpdateGroup,
+  onLeaveGroup,
+  groupActionPending = false,
+  groupActionError,
+  groupActionSuccess,
+  onCreateActivity,
 }: {
   overview: GroupOverview
   onCreateChallenge?: () => void
@@ -355,9 +361,30 @@ export function GroupOverviewPage({
   postActionPending?: boolean
   postActionError?: string
   postActionSuccess?: string
+  onUpdateGroup?: (input: CreateGroupInput) => void
+  onLeaveGroup?: (successorId?: string) => void
+  groupActionPending?: boolean
+  groupActionError?: string
+  groupActionSuccess?: string
+  onCreateActivity?: () => void
 }) {
   const [deleteCandidate, setDeleteCandidate] = useState<string>()
   const [rejectCandidate, setRejectCandidate] = useState<string>()
+  const [leaveConfirmation, setLeaveConfirmation] = useState(false)
+  const currentMembership = overview.members.find(
+    (member) => member.user_id === currentUserId,
+  )
+  const successorCandidates = overview.members.filter(
+    (member) => member.user_id !== currentUserId,
+  )
+  const settingsForm = useForm<GroupFormValues>({
+    resolver: zodResolver(groupSchema),
+    defaultValues: {
+      name: overview.group.name,
+      description: overview.group.description ?? '',
+      timezone: overview.group.timezone,
+    },
+  })
   return (
     <Page title={overview.group.name}>
       <p>{overview.group.description || 'Sem descrição'}</p>
@@ -372,7 +399,7 @@ export function GroupOverviewPage({
       >
         <Tabs.List
           aria-label="Seções do grupo"
-          className="border-subtle grid grid-cols-4 gap-1 rounded-xl border p-1"
+          className="border-subtle grid grid-cols-5 gap-1 rounded-xl border p-1"
         >
           {(
             [
@@ -380,6 +407,7 @@ export function GroupOverviewPage({
               ['ranking', 'Ranking'],
               ['members', 'Membros'],
               ['challenges', 'Desafios'],
+              ['settings', 'Ajustes'],
             ] as const
           ).map(([value, label]) => (
             <Tabs.Trigger
@@ -391,6 +419,144 @@ export function GroupOverviewPage({
             </Tabs.Trigger>
           ))}
         </Tabs.List>
+        <Tabs.Content value="settings" className="grid min-w-0 gap-5">
+          {groupActionError && (
+            <p role="alert" className="text-sm font-bold text-red-700">
+              {groupActionError}
+            </p>
+          )}
+          {groupActionSuccess && (
+            <p role="status" className="text-sm font-bold text-emerald-700">
+              {groupActionSuccess}
+            </p>
+          )}
+          {canManageMembers && onUpdateGroup && (
+            <Surface as="section" className="grid gap-4 p-4">
+              <h2 className="text-xl font-black">Dados do grupo</h2>
+              <form
+                className="grid gap-4"
+                noValidate
+                onSubmit={(event) => {
+                  void settingsForm.handleSubmit((values) =>
+                    onUpdateGroup(values),
+                  )(event)
+                }}
+              >
+                <Input
+                  label="Nome do grupo"
+                  {...fieldError(settingsForm.formState.errors.name?.message)}
+                  {...settingsForm.register('name')}
+                />
+                <Textarea
+                  label="Descrição do grupo"
+                  hint="Explique o propósito e as regras principais do grupo."
+                  {...fieldError(
+                    settingsForm.formState.errors.description?.message,
+                  )}
+                  {...settingsForm.register('description')}
+                />
+                <Input
+                  label="Fuso horário"
+                  hint="Ex.: America/Fortaleza"
+                  {...fieldError(
+                    settingsForm.formState.errors.timezone?.message,
+                  )}
+                  {...settingsForm.register('timezone')}
+                />
+                <Button type="submit" loading={groupActionPending}>
+                  Salvar grupo
+                </Button>
+              </form>
+            </Surface>
+          )}
+          {onLeaveGroup && currentMembership && (
+            <Surface as="section" className="grid gap-3 p-4">
+              <h2 className="text-xl font-black">Sair do grupo</h2>
+              {currentMembership.role === 'owner' ? (
+                successorCandidates.length ? (
+                  <>
+                    <p className="text-secondary text-sm">
+                      Para sair, transfira a propriedade. Seu histórico
+                      permanece, mas você deixa de acessar o grupo e de
+                      participar dos próximos cálculos.
+                    </p>
+                    <label className="grid gap-1 text-sm font-bold">
+                      Novo proprietário
+                      <select
+                        className="ds-input"
+                        form="leave-group-form"
+                        name="successorId"
+                        required
+                        defaultValue=""
+                      >
+                        <option value="" disabled>
+                          Selecione uma pessoa
+                        </option>
+                        {successorCandidates.map((member) => (
+                          <option key={member.user_id} value={member.user_id}>
+                            {member.displayName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                ) : (
+                  <p role="status" className="text-sm">
+                    Você é a única pessoa do grupo. Convide alguém para
+                    transferir a propriedade antes de sair.
+                  </p>
+                )
+              ) : (
+                <p className="text-secondary text-sm">
+                  Seu histórico permanece, mas você perde o acesso ao grupo e
+                  deixa de participar das próximas votações.
+                </p>
+              )}
+              {(currentMembership.role !== 'owner' ||
+                successorCandidates.length > 0) &&
+                (leaveConfirmation ? (
+                  <form
+                    id="leave-group-form"
+                    className="grid gap-2"
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      const successorValue = new FormData(
+                        event.currentTarget,
+                      ).get('successorId')
+                      const successorId =
+                        typeof successorValue === 'string' ? successorValue : ''
+                      onLeaveGroup(successorId || undefined)
+                    }}
+                  >
+                    <p className="font-bold">Tem certeza que deseja sair?</p>
+                    <Button
+                      type="submit"
+                      variant="danger"
+                      loading={groupActionPending}
+                    >
+                      Confirmar saída
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={groupActionPending}
+                      onClick={() => setLeaveConfirmation(false)}
+                    >
+                      Permanecer no grupo
+                    </Button>
+                  </form>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={() => setLeaveConfirmation(true)}
+                  >
+                    Sair do grupo
+                  </Button>
+                ))}
+            </Surface>
+          )}
+        </Tabs.Content>
         <Tabs.Content value="ranking" className="min-w-0">
           <GroupLeaderboard
             entries={overview.leaderboard}
@@ -505,7 +671,14 @@ export function GroupOverviewPage({
           )}
         </Tabs.Content>
         <Tabs.Content value="feed" className="grid min-w-0 gap-4">
-          <h2 className="text-xl font-black">Feed do grupo</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-xl font-black">Feed do grupo</h2>
+            {onCreateActivity && (
+              <Button type="button" onClick={onCreateActivity}>
+                Publicar atividade
+              </Button>
+            )}
+          </div>
           {postActionError && (
             <p role="alert" className="text-sm font-bold text-red-700">
               {postActionError}

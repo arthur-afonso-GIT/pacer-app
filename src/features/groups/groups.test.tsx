@@ -28,6 +28,42 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 )
 
 describe('group setup', () => {
+  const editableOverview = {
+    group: {
+      id: 'g1',
+      name: 'Amigos',
+      description: 'Hábitos em conjunto',
+      timezone: 'America/Fortaleza',
+      created_by: 'owner',
+      created_at: '',
+      updated_at: '',
+    },
+    members: [
+      {
+        group_id: 'g1',
+        user_id: 'owner',
+        role: 'owner' as const,
+        status: 'active' as const,
+        joined_at: '',
+        left_at: null,
+        displayName: 'Ana',
+        avatarUrl: null,
+      },
+      {
+        group_id: 'g1',
+        user_id: 'member',
+        role: 'member' as const,
+        status: 'active' as const,
+        joined_at: '',
+        left_at: null,
+        displayName: 'Bia',
+        avatarUrl: null,
+      },
+    ],
+    challenges: [],
+    feed: [],
+    leaderboard: [],
+  }
   it('exposes create and join actions from an empty group list', async () => {
     const create = vi.fn()
     const join = vi.fn()
@@ -40,6 +76,95 @@ describe('group setup', () => {
     )
     expect(create).toHaveBeenCalledOnce()
     expect(join).toHaveBeenCalledOnce()
+  })
+
+  it('requires a useful group description', () => {
+    expect(
+      groupSchema.safeParse({
+        name: 'Corrida',
+        description: '',
+        timezone: 'UTC',
+      }).success,
+    ).toBe(false)
+    expect(
+      groupSchema.safeParse({
+        name: 'Corrida',
+        description: 'Grupo para correr juntos',
+        timezone: 'UTC',
+      }).success,
+    ).toBe(true)
+  })
+
+  it('allows an administrator to edit group details', async () => {
+    const update = vi.fn()
+    render(
+      <GroupOverviewPage
+        overview={editableOverview}
+        currentUserId="owner"
+        canManageMembers
+        onUpdateGroup={update}
+      />,
+      { wrapper },
+    )
+    await userEvent.click(screen.getByRole('tab', { name: 'Ajustes' }))
+    await userEvent.clear(screen.getByLabelText('Descrição do grupo'))
+    await userEvent.type(
+      screen.getByLabelText('Descrição do grupo'),
+      'Leitura e exercício todos os dias',
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar grupo' }))
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Amigos',
+        description: 'Leitura e exercício todos os dias',
+        timezone: 'America/Fortaleza',
+      }),
+    )
+  })
+
+  it('requires confirmation to leave and an owner successor', async () => {
+    const leave = vi.fn()
+    render(
+      <GroupOverviewPage
+        overview={editableOverview}
+        currentUserId="owner"
+        canManageMembers
+        onLeaveGroup={leave}
+      />,
+      { wrapper },
+    )
+    await userEvent.click(screen.getByRole('tab', { name: 'Ajustes' }))
+    expect(screen.getByText(/transfira a propriedade/)).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: 'Sair do grupo' }))
+    expect(leave).not.toHaveBeenCalled()
+    await userEvent.selectOptions(
+      screen.getByLabelText('Novo proprietário'),
+      'member',
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Confirmar saída' }),
+    )
+    expect(leave).toHaveBeenCalledWith('member')
+  })
+
+  it('prevents the only owner from leaving without a successor', async () => {
+    const leave = vi.fn()
+    render(
+      <GroupOverviewPage
+        overview={{
+          ...editableOverview,
+          members: editableOverview.members.slice(0, 1),
+        }}
+        currentUserId="owner"
+        onLeaveGroup={leave}
+      />,
+      { wrapper },
+    )
+    await userEvent.click(screen.getByRole('tab', { name: 'Ajustes' }))
+    expect(screen.getByText(/única pessoa do grupo/)).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Sair do grupo' }),
+    ).not.toBeInTheDocument()
   })
 
   it('opens on feed and separates ranking and members into tabs', async () => {
@@ -178,6 +303,10 @@ describe('group setup', () => {
       wrapper,
     })
     await userEvent.type(screen.getByLabelText('Nome do grupo'), '  Corrida  ')
+    await userEvent.type(
+      screen.getByLabelText('Descrição'),
+      'Grupo para manter uma rotina de corrida.',
+    )
     await userEvent.clear(screen.getByLabelText('Fuso horário'))
     await userEvent.type(
       screen.getByLabelText('Fuso horário'),

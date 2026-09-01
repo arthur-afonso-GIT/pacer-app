@@ -9,6 +9,7 @@ import {
   CreateHabitPage,
 } from './pages'
 import { challengeSchema, habitSchema, zonedLocalToIso } from './schemas'
+import { createChallengesRepository } from './api'
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <QueryClientProvider client={new QueryClient()}>
@@ -108,20 +109,115 @@ describe('challenge and habit setup', () => {
     )
   })
 
-  it('publishes a photo activity to all groups', async () => {
+  it('publishes a photo activity to selected groups', async () => {
     const createHabit = vi.fn().mockResolvedValue({ postId: 'p1' })
-    render(<CreateGlobalHabitPage createHabit={createHabit} />, { wrapper })
+    render(
+      <CreateGlobalHabitPage
+        createHabit={createHabit}
+        groups={[
+          { id: 'g1', name: 'Amigos', description: 'Exercícios' },
+          { id: 'g2', name: 'Família', description: 'Rotina em família' },
+        ]}
+        initialGroupIds={['g1']}
+      />,
+      { wrapper },
+    )
     const photo = new File(['photo'], 'treino.jpg', { type: 'image/jpeg' })
     await userEvent.upload(screen.getByLabelText('Galeria'), photo)
     await userEvent.type(screen.getByLabelText('Nome da atividade'), 'Meditar')
     await userEvent.click(
-      screen.getByRole('button', { name: 'Publicar em todos os grupos' }),
+      screen.getByRole('button', { name: 'Publicar em 1 grupo' }),
     )
     expect(createHabit.mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({ name: 'Meditar', points: 10, photo }),
+      expect.objectContaining({
+        name: 'Meditar',
+        points: 10,
+        photo,
+        groupIds: ['g1'],
+      }),
     )
     expect(
-      await screen.findByText('Atividade publicada nos seus grupos.'),
+      await screen.findByText('Atividade publicada em 1 grupo.'),
     ).toBeVisible()
+  })
+
+  it('selects several destinations like forwarding a message', async () => {
+    const createHabit = vi.fn().mockResolvedValue({ postId: 'p1' })
+    render(
+      <CreateGlobalHabitPage
+        createHabit={createHabit}
+        groups={[
+          { id: 'g1', name: 'Corrida', description: 'Treinos' },
+          { id: 'g2', name: 'Leitura', description: 'Livros' },
+          { id: 'g3', name: 'Família', description: 'Casa' },
+        ]}
+      />,
+      { wrapper },
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Selecionar todos' }),
+    )
+    expect(screen.getByText('3 selecionados')).toBeVisible()
+    await userEvent.type(screen.getByLabelText('Buscar grupo'), 'Leitura')
+    expect(screen.getByText('Leitura')).toBeVisible()
+    expect(screen.queryByText('Corrida')).not.toBeInTheDocument()
+    await userEvent.clear(screen.getByLabelText('Buscar grupo'))
+    await userEvent.click(screen.getByText('Família'))
+    expect(screen.getByText('2 selecionados')).toBeVisible()
+  })
+
+  it('requires a destination before publishing', async () => {
+    const createHabit = vi.fn()
+    render(
+      <CreateGlobalHabitPage
+        createHabit={createHabit}
+        groups={[{ id: 'g1', name: 'Amigos', description: 'Rotina' }]}
+      />,
+      { wrapper },
+    )
+    const photo = new File(['photo'], 'treino.jpg', { type: 'image/jpeg' })
+    await userEvent.upload(screen.getByLabelText('Galeria'), photo)
+    await userEvent.type(screen.getByLabelText('Nome da atividade'), 'Meditar')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Escolha os grupos' }),
+    )
+    expect(
+      await screen.findByText('Escolha pelo menos um grupo.'),
+    ).toBeVisible()
+    expect(createHabit).not.toHaveBeenCalled()
+  })
+
+  it('uploads once and sends only selected group ids to the transactional RPC', async () => {
+    const upload = vi.fn().mockResolvedValue({ error: null })
+    const remove = vi.fn().mockResolvedValue({ error: null })
+    const rpc = vi.fn().mockResolvedValue({ data: 'post', error: null })
+    const repository = createChallengesRepository({
+      auth: {
+        getUser: vi
+          .fn()
+          .mockResolvedValue({ data: { user: { id: 'author' } }, error: null }),
+      },
+      storage: { from: vi.fn().mockReturnValue({ upload, remove }) },
+      rpc,
+    } as never)
+    const photo = new File(['photo'], 'treino.jpg', { type: 'image/jpeg' })
+    expect(
+      await repository.createGlobalHabit({
+        name: 'Treino',
+        points: 12,
+        photo,
+        groupIds: ['g2', 'g1'],
+      }),
+    ).toEqual({ postId: 'post' })
+    expect(upload).toHaveBeenCalledOnce()
+    expect(rpc).toHaveBeenCalledWith(
+      'create_activity_post_for_groups',
+      expect.objectContaining({
+        p_name: 'Treino',
+        p_suggested_points: 12,
+        p_group_ids: ['g2', 'g1'],
+      }),
+    )
+    expect(remove).not.toHaveBeenCalled()
   })
 })

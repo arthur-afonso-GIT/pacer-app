@@ -847,6 +847,15 @@ export type Database = {
         }
         Returns: string
       }
+      create_activity_post_for_groups: {
+        Args: {
+          p_group_ids: string[]
+          p_name: string
+          p_photo_path: string
+          p_suggested_points: number
+        }
+        Returns: string
+      }
       accept_group_invite: { Args: { p_token: string }; Returns: string }
       cancel_submission: {
         Args: { p_reason?: string; p_submission_id: string }
@@ -1030,6 +1039,19 @@ export type Database = {
           status: Database['public']['Enums']['membership_status']
           user_id: string
         }
+      }
+      leave_group: {
+        Args: { p_group_id: string; p_successor_id?: string | null }
+        Returns: Database['public']['Tables']['group_members']['Row']
+      }
+      update_group_settings: {
+        Args: {
+          p_description: string
+          p_group_id: string
+          p_name: string
+          p_timezone: string
+        }
+        Returns: Database['public']['Tables']['groups']['Row']
       }
       reverse_point_transaction: {
         Args: { p_reason: string; p_transaction_id: string }

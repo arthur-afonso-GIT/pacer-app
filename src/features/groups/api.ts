@@ -41,9 +41,10 @@ export interface GroupFeedPost {
 }
 export interface CreateGroupInput {
   name: string
-  description?: string
+  description: string
   timezone: string
 }
+export type UpdateGroupInput = CreateGroupInput & { groupId: string }
 export interface CreateInviteInput {
   groupId: string
   email?: string
@@ -207,6 +208,22 @@ export const createGroupsRepository = (client: SupabaseClient<Database>) => ({
       p_user_id: userId,
       p_action: 'remove',
       p_role: null,
+    })
+    return result(data, error)
+  },
+  async updateGroup(input: UpdateGroupInput): Promise<Group> {
+    const { data, error } = await client.rpc('update_group_settings', {
+      p_group_id: input.groupId,
+      p_name: input.name,
+      p_description: input.description,
+      p_timezone: input.timezone,
+    })
+    return result(data, error)
+  },
+  async leaveGroup(groupId: string, successorId?: string) {
+    const { data, error } = await client.rpc('leave_group', {
+      p_group_id: groupId,
+      p_successor_id: successorId || null,
     })
     return result(data, error)
   },
