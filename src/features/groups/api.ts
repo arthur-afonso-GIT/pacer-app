@@ -37,7 +37,21 @@ export interface GroupFeedPost {
     points: number
     isAuthor: boolean
   }[]
+  history: GroupActivityEvent[]
   createdAt: string
+}
+export interface GroupActivityEvent {
+  id: number
+  actorId: string | null
+  actorName: string
+  type:
+    | 'points_proposed'
+    | 'rejection_recorded'
+    | 'rejection_withdrawn'
+    | 'activity_approved'
+    | 'activity_rejected'
+  points: number | null
+  occurredAt: string
 }
 export interface CreateGroupInput {
   name: string
@@ -88,26 +102,50 @@ export const createGroupsRepository = (client: SupabaseClient<Database>) => ({
     return result(data, error)
   },
   async overview(groupId: string): Promise<GroupOverview> {
-    const [group, members, challenges, feed, leaderboard] = await Promise.all([
-      client.from('groups').select('*').eq('id', groupId).single(),
-      client
-        .from('group_members')
-        .select('*, profiles(display_name, avatar_url)')
-        .eq('group_id', groupId)
-        .eq('status', 'active'),
-      client
-        .from('challenges')
-        .select('*')
-        .eq('group_id', groupId)
-        .order('starts_at'),
-      client.rpc('get_group_feed', { p_group_id: groupId }),
-      client.rpc('get_group_leaderboard', { p_group_id: groupId }),
-    ])
+    const [group, members, challenges, feed, leaderboard, history] =
+      await Promise.all([
+        client.from('groups').select('*').eq('id', groupId).single(),
+        client
+          .from('group_members')
+          .select('*, profiles(display_name, avatar_url)')
+          .eq('group_id', groupId)
+          .eq('status', 'active'),
+        client
+          .from('challenges')
+          .select('*')
+          .eq('group_id', groupId)
+          .order('starts_at'),
+        client.rpc('get_group_feed', { p_group_id: groupId }),
+        client.rpc('get_group_leaderboard', { p_group_id: groupId }),
+        client.rpc('get_group_activity_history', { p_group_id: groupId }),
+      ])
     if (group.error) throw group.error
     if (members.error) throw members.error
     if (challenges.error) throw challenges.error
     if (feed.error) throw feed.error
     if (leaderboard.error) throw leaderboard.error
+    if (history.error) throw history.error
+    const historyByPost = new Map<string, GroupActivityEvent[]>()
+    for (const event of history.data) {
+      if (
+        event.event_type !== 'points_proposed' &&
+        event.event_type !== 'rejection_recorded' &&
+        event.event_type !== 'rejection_withdrawn' &&
+        event.event_type !== 'activity_approved' &&
+        event.event_type !== 'activity_rejected'
+      )
+        continue
+      const postHistory = historyByPost.get(event.post_id) ?? []
+      postHistory.push({
+        id: event.event_id,
+        actorId: event.actor_id,
+        actorName: event.actor_name,
+        type: event.event_type,
+        points: event.points,
+        occurredAt: event.occurred_at,
+      })
+      historyByPost.set(event.post_id, postHistory)
+    }
     const feedWithUrls = await Promise.all(
       feed.data.map(async (post) => {
         const signed = await client.storage
@@ -151,6 +189,7 @@ export const createGroupsRepository = (client: SupabaseClient<Database>) => ({
                   : []
               })
             : [],
+          history: historyByPost.get(post.post_id) ?? [],
           createdAt: post.created_at,
         }
       }),

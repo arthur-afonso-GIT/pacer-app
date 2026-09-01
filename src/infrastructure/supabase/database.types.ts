@@ -39,6 +39,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_post_events: {
+        Row: {
+          actor_id: string | null
+          event_type: string
+          group_id: string
+          id: number
+          occurred_at: string
+          points: number | null
+          post_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          event_type: string
+          group_id: string
+          id?: never
+          occurred_at?: string
+          points?: number | null
+          post_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          event_type?: string
+          group_id?: string
+          id?: never
+          occurred_at?: string
+          points?: number | null
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'activity_post_events_actor_id_fkey'
+            columns: ['actor_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'activity_post_events_post_id_group_id_fkey'
+            columns: ['post_id', 'group_id']
+            isOneToOne: false
+            referencedRelation: 'activity_post_groups'
+            referencedColumns: ['post_id', 'group_id']
+          },
+        ]
+      }
       audit_events: {
         Row: {
           action: string
@@ -919,6 +964,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      correct_point_transaction: {
+        Args: {
+          p_corrected_points: number
+          p_reason: string
+          p_transaction_id: string
+        }
+        Returns: Json
+      }
       dispute_submission: {
         Args: { p_reason: string; p_submission_id: string }
         Returns: {
@@ -976,6 +1029,18 @@ export type Database = {
           required_votes: number
           status: string
           suggested_points: number
+        }[]
+      }
+      get_group_activity_history: {
+        Args: { p_group_id: string }
+        Returns: {
+          actor_id: string | null
+          actor_name: string
+          event_id: number
+          event_type: string
+          occurred_at: string
+          points: number | null
+          post_id: string
         }[]
       }
       get_group_leaderboard: {

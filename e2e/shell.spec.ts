@@ -6,8 +6,10 @@ test('redirects an unauthenticated visitor to the authentication flow', async ({
   await page.goto('/')
   await expect(page).toHaveURL(/\/entrar$/)
   await expect(
-    page.getByRole('heading', { name: 'Entre no seu ritmo' }),
+    page.getByRole('heading', { name: 'Entrar na sua conta' }),
   ).toBeVisible()
   await expect(page.getByLabel('E-mail')).toBeVisible()
-  await expect(page.getByLabel('Senha')).toBeVisible()
+  await expect(
+    page.getByRole('textbox', { name: 'Senha', exact: true }),
+  ).toBeVisible()
 })

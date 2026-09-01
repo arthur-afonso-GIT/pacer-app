@@ -1,6 +1,7 @@
 -- Standalone regression: supabase db query --linked --file <this file>
 -- All fixtures, notifications and audit records are rolled back.
 begin;
+select plan(1);
 create temporary table activity_action_fixture as select
   extensions.gen_random_uuid() author_id, extensions.gen_random_uuid() member_a,
   extensions.gen_random_uuid() member_b, extensions.gen_random_uuid() member_c,
@@ -14,8 +15,8 @@ insert into auth.users(id,email,raw_user_meta_data)
 select id,id::text||'@example.test','{"display_name":"Activity regression"}'::jsonb
 from activity_action_fixture f cross join lateral unnest(array[f.author_id,f.member_a,f.member_b,f.member_c,f.outsider]) id;
 select set_config('request.jwt.claim.sub',author_id::text,true) from activity_action_fixture;
-update activity_action_fixture set group_a=(public.create_group('Regression A','','UTC')).id;
-update activity_action_fixture set group_b=(public.create_group('Regression B','','UTC')).id;
+update activity_action_fixture set group_a=(public.create_group('Regression A','First activity regression group','UTC')).id;
+update activity_action_fixture set group_b=(public.create_group('Regression B','Second activity regression group','UTC')).id;
 insert into public.group_members(group_id,user_id,role,status)
 select gid,uid,'member','active' from activity_action_fixture f
 cross join lateral unnest(array[f.group_a,f.group_b]) gid
@@ -93,5 +94,6 @@ do $$ declare f record; begin
   perform pg_temp.check_activity(not exists(select 1 from public.activity_point_proposals where post_id=f.post_id),'proposal cascade');
   perform pg_temp.check_activity(not exists(select 1 from public.activity_post_votes where post_id=f.post_id),'vote cascade');
 end $$;
-select 'Activity actions regression passed; all fixtures rolled back' as result;
+select pass('activity actions preserve authorization, majority and cleanup invariants');
+select * from finish();
 rollback;

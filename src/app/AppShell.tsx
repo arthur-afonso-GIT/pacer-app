@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Bell,
   CalendarDays,
   Home,
   Plus,
@@ -7,15 +8,18 @@ import {
   UserRound,
   UsersRound,
 } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { isGroupDestination, parentDestination } from './navigation'
 import { Avatar, Skeleton } from '@/design-system'
 import { useAuth } from '@/features/auth/auth-context'
 import { useProfile } from '@/features/profiles/queries'
+import { supabase } from '@/infrastructure/supabase/client'
 import { copy } from '@/shared/i18n/pt-BR'
 import { applyThemePreference, type ThemePreference } from './theme'
 import { NetworkStatus } from './NetworkStatus'
+import { createNotificationsRepository } from '@/features/notifications/api'
+import { useUnreadNotificationCount } from '@/features/notifications/queries'
 
 const items = [
   { to: '/', label: copy.nav.today, icon: Home },
@@ -30,6 +34,14 @@ export function AppShell() {
   const backTo = parentDestination(pathname)
   const { user } = useAuth()
   const profile = useProfile(user?.id)
+  const notificationsRepository = useMemo(
+    () => (supabase ? createNotificationsRepository(supabase) : null),
+    [],
+  )
+  const unreadNotifications = useUnreadNotificationCount(
+    notificationsRepository,
+    user?.id ?? '',
+  )
   useEffect(
     () =>
       applyThemePreference(
@@ -69,6 +81,18 @@ export function AppShell() {
           className="text-secondary mr-3 ml-auto grid size-11 place-items-center"
         >
           <Trophy aria-hidden size={21} />
+        </Link>
+        <Link
+          to="/notificacoes"
+          aria-label={`Notificações${unreadNotifications.data ? `, ${unreadNotifications.data} não lidas` : ''}`}
+          className="text-secondary relative mr-2 grid size-11 place-items-center"
+        >
+          <Bell aria-hidden size={21} />
+          {Boolean(unreadNotifications.data) && (
+            <span className="bg-negative text-canvas absolute top-1 right-0 grid min-h-5 min-w-5 place-items-center rounded-full px-1 text-[0.65rem] font-black">
+              {Math.min(unreadNotifications.data ?? 0, 99)}
+            </span>
+          )}
         </Link>
         {profile.isLoading ? (
           <Skeleton width={104} height={32} className="rounded-full" />

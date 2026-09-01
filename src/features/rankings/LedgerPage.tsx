@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   EmptyState,
+  Input,
   Skeleton,
   Surface,
   Textarea,
@@ -10,6 +11,7 @@ import {
 import {
   useCanManageGroup,
   useChallengeLedger,
+  useCorrectPoints,
   useReversePoints,
 } from './queries'
 
@@ -31,8 +33,19 @@ export function LedgerPage({
   const permission = useCanManageGroup(groupId, userId)
   const ledger = useChallengeLedger(challengeId, permission.data === true)
   const reversal = useReversePoints(challengeId)
-  const [selectedId, setSelectedId] = useState<string>()
+  const correction = useCorrectPoints(challengeId)
+  const [selectedAction, setSelectedAction] = useState<{
+    id: string
+    mode: 'correct' | 'reverse'
+  }>()
+  const [correctedPoints, setCorrectedPoints] = useState('')
   const [reason, setReason] = useState('')
+
+  const clearAction = () => {
+    setSelectedAction(undefined)
+    setCorrectedPoints('')
+    setReason('')
+  }
 
   if (permission.isLoading) return <p role="status">Verificando permissão…</p>
   if (!permission.data)
@@ -75,7 +88,7 @@ export function LedgerPage({
         <ol className="grid gap-3">
           {ledger.data.map((entry) => {
             const reversible =
-              entry.kind !== 'reversal' && entry.points > 0 && !entry.reversed
+              entry.kind === 'award' && entry.points > 0 && !entry.reversed
             return (
               <li key={entry.id}>
                 <Surface as="article" className="grid gap-3 p-4">
@@ -100,7 +113,11 @@ export function LedgerPage({
                     <Badge
                       tone={entry.kind === 'reversal' ? 'danger' : 'success'}
                     >
-                      {entry.kind === 'reversal' ? 'Reversão' : 'Crédito'}
+                      {entry.kind === 'reversal'
+                        ? 'Reversão'
+                        : entry.kind === 'adjustment'
+                          ? 'Valor corrigido'
+                          : 'Crédito'}
                     </Badge>
                     {entry.reversed && <Badge>Já revertido</Badge>}
                   </div>
@@ -108,10 +125,26 @@ export function LedgerPage({
                     <p className="text-secondary text-sm">{entry.reason}</p>
                   )}
                   {reversible &&
-                    (selectedId === entry.id ? (
+                    (selectedAction?.id === entry.id ? (
                       <div className="grid gap-3 border-t border-[var(--ds-color-border)] pt-3">
+                        {selectedAction.mode === 'correct' && (
+                          <Input
+                            label="Novo valor de pontos"
+                            type="number"
+                            min={1}
+                            max={100000}
+                            value={correctedPoints}
+                            onChange={(event) =>
+                              setCorrectedPoints(event.target.value)
+                            }
+                          />
+                        )}
                         <Textarea
-                          label="Motivo da reversão"
+                          label={
+                            selectedAction.mode === 'correct'
+                              ? 'Motivo da correção'
+                              : 'Motivo da remoção'
+                          }
                           minLength={3}
                           maxLength={1000}
                           value={reason}
@@ -122,52 +155,78 @@ export function LedgerPage({
                             type="button"
                             size="sm"
                             variant="danger"
-                            disabled={reason.trim().length < 3}
-                            loading={reversal.isPending}
-                            onClick={() =>
-                              reversal.mutate(
-                                {
-                                  transactionId: entry.id,
-                                  reason: reason.trim(),
-                                },
-                                {
-                                  onSuccess: () => {
-                                    setSelectedId(undefined)
-                                    setReason('')
-                                  },
-                                },
-                              )
+                            disabled={
+                              reason.trim().length < 3 ||
+                              (selectedAction.mode === 'correct' &&
+                                (!Number.isInteger(Number(correctedPoints)) ||
+                                  Number(correctedPoints) < 1 ||
+                                  Number(correctedPoints) > 100000 ||
+                                  Number(correctedPoints) === entry.points))
                             }
+                            loading={reversal.isPending || correction.isPending}
+                            onClick={() => {
+                              if (selectedAction.mode === 'correct')
+                                correction.mutate(
+                                  {
+                                    transactionId: entry.id,
+                                    correctedPoints: Number(correctedPoints),
+                                    reason: reason.trim(),
+                                  },
+                                  { onSuccess: clearAction },
+                                )
+                              else
+                                reversal.mutate(
+                                  {
+                                    transactionId: entry.id,
+                                    reason: reason.trim(),
+                                  },
+                                  { onSuccess: clearAction },
+                                )
+                            }}
                           >
-                            Confirmar reversão
+                            {selectedAction.mode === 'correct'
+                              ? 'Confirmar novo valor'
+                              : 'Confirmar remoção'}
                           </Button>
                           <Button
                             type="button"
                             size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              setSelectedId(undefined)
-                              setReason('')
-                            }}
+                            onClick={clearAction}
                           >
                             Voltar
                           </Button>
                         </div>
-                        {reversal.error && (
+                        {(reversal.error || correction.error) && (
                           <p role="alert" className="text-sm text-red-700">
-                            Não foi possível reverter este lançamento.
+                            Não foi possível corrigir este lançamento.
                           </p>
                         )}
                       </div>
                     ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setSelectedId(entry.id)}
-                      >
-                        Corrigir pontuação
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setSelectedAction({ id: entry.id, mode: 'correct' })
+                            setCorrectedPoints(String(entry.points))
+                          }}
+                        >
+                          Corrigir valor
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            setSelectedAction({ id: entry.id, mode: 'reverse' })
+                          }
+                        >
+                          Remover pontuação
+                        </Button>
+                      </div>
                     ))}
                 </Surface>
               </li>

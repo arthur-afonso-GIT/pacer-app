@@ -17,8 +17,8 @@ union all select member_id, member_id::text || '@example.test', '{"display_name"
 union all select outsider_id, outsider_id::text || '@example.test', '{"display_name":"Feed outsider"}'::jsonb from activity_fixture;
 
 select set_config('request.jwt.claim.sub', author_id::text, true) from activity_fixture;
-update activity_fixture set group_a = (public.create_group('Feed A','','America/Fortaleza')).id;
-update activity_fixture set group_b = (public.create_group('Feed B','','Asia/Tokyo')).id;
+update activity_fixture set group_a = (public.create_group('Feed A','Primary feed visibility group','America/Fortaleza')).id;
+update activity_fixture set group_b = (public.create_group('Feed B','Secondary feed visibility group','Asia/Tokyo')).id;
 insert into public.group_members(group_id,user_id,role,status)
 select group_a,member_id,'member','active' from activity_fixture;
 update activity_fixture set photo_path = author_id::text || '/regression.jpg';

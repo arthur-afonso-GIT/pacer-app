@@ -34,6 +34,24 @@ const overview: GroupOverview = {
       matchingProposals: 0,
       hasVoted: false,
       proposals: [],
+      history: [
+        {
+          id: 1,
+          actorId: 'member',
+          actorName: 'Bruno',
+          type: 'points_proposed',
+          points: 10,
+          occurredAt: '2026-09-01T12:00:00Z',
+        },
+        {
+          id: 2,
+          actorId: 'member',
+          actorName: 'Bruno',
+          type: 'rejection_withdrawn',
+          points: null,
+          occurredAt: '2026-09-01T12:01:00Z',
+        },
+      ],
       createdAt: '',
     },
   ],
@@ -138,6 +156,20 @@ describe('activity actions', () => {
     expect(
       screen.queryByRole('button', { name: 'Rejeitar atividade' }),
     ).not.toBeInTheDocument()
+  })
+  it('shows an append-only timeline for negotiation changes', async () => {
+    render(
+      <GroupOverviewPage
+        overview={overview}
+        currentUserId="member"
+        onVotePost={vi.fn()}
+      />,
+    )
+    await userEvent.click(screen.getByText('Histórico da decisão (2)'))
+    expect(screen.getByText('Bruno propôs 10 pontos.')).toBeVisible()
+    expect(
+      screen.getByText('Bruno retirou a rejeição ao fazer uma proposta.'),
+    ).toBeVisible()
   })
   it('deletes through the author RPC then removes only the returned photo', async () => {
     const rpc = vi

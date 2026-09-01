@@ -1,4 +1,5 @@
 begin;
+select plan(1);
 create temporary table destination_fixture as select
   extensions.gen_random_uuid() author_id,extensions.gen_random_uuid() member_id,
   extensions.gen_random_uuid() outsider_id;
@@ -39,5 +40,6 @@ do $$ declare f record; begin
   perform pg_temp.check_destination(not exists(select 1 from public.get_group_feed(f.group_a) where post_id=f.post_id),'outsider sees no feed');
 end $$;
 reset role;
-select 'Selected destination regression passed; all fixtures rolled back' result;
+select pass('selected activity destinations are authorized and deduplicated');
+select * from finish();
 rollback;

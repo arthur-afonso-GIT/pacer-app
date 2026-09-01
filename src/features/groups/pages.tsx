@@ -27,6 +27,11 @@ import {
   type InviteFormValues,
 } from './schemas'
 
+const groupEventDateTime = new Intl.DateTimeFormat('pt-BR', {
+  dateStyle: 'short',
+  timeStyle: 'short',
+})
+
 const Page = ({
   title,
   children,
@@ -756,6 +761,38 @@ export function GroupOverviewPage({
                       {post.rejections} de {post.requiredVotes} votos para
                       rejeitar neste grupo.
                     </p>
+                    {post.history.length > 0 && (
+                      <details className="border-subtle rounded-xl border p-3">
+                        <summary className="cursor-pointer font-bold">
+                          Histórico da decisão ({post.history.length})
+                        </summary>
+                        <ol className="mt-3 grid gap-3 border-l border-[var(--ds-color-border)] pl-4 text-sm">
+                          {post.history.map((event) => (
+                            <li key={event.id}>
+                              <p className="font-bold">
+                                {event.type === 'points_proposed'
+                                  ? `${event.actorName} propôs ${event.points} pontos.`
+                                  : event.type === 'rejection_recorded'
+                                    ? `${event.actorName} votou por rejeitar.`
+                                    : event.type === 'rejection_withdrawn'
+                                      ? `${event.actorName} retirou a rejeição ao fazer uma proposta.`
+                                      : event.type === 'activity_approved'
+                                        ? 'A maioria aprovou a pontuação.'
+                                        : 'A maioria rejeitou a atividade.'}
+                              </p>
+                              <time
+                                className="text-secondary text-xs"
+                                dateTime={event.occurredAt}
+                              >
+                                {groupEventDateTime.format(
+                                  new Date(event.occurredAt),
+                                )}
+                              </time>
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    )}
                     {post.status === 'pending' &&
                       post.hasVoted &&
                       post.authorId !== currentUserId && (

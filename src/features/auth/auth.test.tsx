@@ -139,12 +139,10 @@ describe('AuthPage', () => {
   })
 
   it('explains a Supabase email delivery failure', async () => {
-    const signUp = vi
-      .fn()
-      .mockRejectedValue({
-        code: 'over_email_send_rate_limit',
-        message: 'email rate limit exceeded',
-      })
+    const signUp = vi.fn().mockRejectedValue({
+      code: 'over_email_send_rate_limit',
+      message: 'email rate limit exceeded',
+    })
     render(
       <MemoryRouter>
         <AuthPage signIn={vi.fn()} signUp={signUp} />

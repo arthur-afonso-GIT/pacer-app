@@ -113,6 +113,7 @@ export function TodayView({
   onOpenChallenge,
   onSubmit,
   onReadNotification,
+  onOpenNotifications,
 }: {
   dashboard?: TodayDashboard
   loading?: boolean
@@ -123,6 +124,7 @@ export function TodayView({
   onOpenChallenge: (challengeId: string) => void
   onSubmit: (challengeId: string) => void
   onReadNotification?: (notificationId: string) => void
+  onOpenNotifications?: () => void
 }) {
   return (
     <section className="mx-auto grid w-full max-w-xl gap-7 py-6">
@@ -192,6 +194,17 @@ export function TodayView({
               <RecentSubmission key={submission.id} submission={submission} />
             ))}
           </ul>
+          {onOpenNotifications && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mt-2"
+              onClick={onOpenNotifications}
+            >
+              Ver todas as notificações <ArrowRight aria-hidden size={17} />
+            </Button>
+          )}
         </Surface>
       )}
 
@@ -263,6 +276,7 @@ export function TodayRoute() {
       onOpenChallenge={(id) => void navigate(`/desafio/${id}`)}
       onSubmit={(id) => void navigate(`/desafio/${id}/registrar`)}
       onReadNotification={(id) => markRead.mutate(id)}
+      onOpenNotifications={() => void navigate('/notificacoes')}
     />
   )
 }

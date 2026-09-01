@@ -120,6 +120,14 @@ const router = createBrowserRouter([
             lazy: () => feature('RankingHubRoute'),
           },
           {
+            path: 'notificacoes',
+            lazy: async () => {
+              const { NotificationsRoute } =
+                await import('@/features/notifications')
+              return { Component: NotificationsRoute }
+            },
+          },
+          {
             path: 'calendario',
             element: <CalendarRoute />,
           },

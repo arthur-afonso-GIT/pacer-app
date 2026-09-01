@@ -1,4 +1,5 @@
 begin;
+select plan(1);
 create temporary table leave_fixture as select
   extensions.gen_random_uuid() owner_id, extensions.gen_random_uuid() admin_id,
   extensions.gen_random_uuid() member_id, extensions.gen_random_uuid() outsider_id;
@@ -52,5 +53,6 @@ do $$ declare f record; begin
   perform pg_temp.check_group((select count(*)=2 from public.audit_events where group_id=f.group_id and action='group.member_left'),'exits audited');
   perform pg_temp.check_group((select count(*)=2 from public.audit_events where group_id=f.group_id and action='group.settings_updated'),'updates audited');
 end $$;
-select 'Group settings and leave regression passed; all fixtures rolled back' result;
+select pass('group settings, ownership transfer and leave invariants hold');
+select * from finish();
 rollback;

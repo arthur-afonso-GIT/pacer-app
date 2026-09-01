@@ -148,3 +148,37 @@ export const useReversePoints = (challengeId: string) => {
       ]),
   })
 }
+
+export const useCorrectPoints = (challengeId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      transactionId,
+      correctedPoints,
+      reason,
+    }: {
+      transactionId: string
+      correctedPoints: number
+      reason: string
+    }) => {
+      if (!supabase) throw new Error('Supabase não está configurado.')
+      const { data, error } = await supabase.rpc('correct_point_transaction', {
+        p_transaction_id: transactionId,
+        p_corrected_points: correctedPoints,
+        p_reason: reason,
+      })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['ledger', challengeId] }),
+        queryClient.invalidateQueries({ queryKey: ['ranking', challengeId] }),
+        queryClient.invalidateQueries({
+          queryKey: ['ledger-statistics', challengeId],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['today'] }),
+        queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+      ]),
+  })
+}
