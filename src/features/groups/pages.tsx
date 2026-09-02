@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import * as Tabs from '@radix-ui/react-tabs'
+import { Plus } from 'lucide-react'
 import { GroupLeaderboard } from './GroupLeaderboard'
 import {
   Badge,
@@ -708,10 +709,16 @@ export function GroupOverviewPage({
         </Tabs.Content>
         <Tabs.Content value="challenges" className="grid min-w-0 gap-4">
           {onCreateChallenge && (
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" onClick={onCreateChallenge}>
-                Criar desafio
+            <div className="grid justify-items-center gap-2 py-2">
+              <Button
+                type="button"
+                onClick={onCreateChallenge}
+                aria-label="Criar desafio"
+                className="size-16 rounded-full p-0 shadow-lg"
+              >
+                <Plus aria-hidden size={32} strokeWidth={2.6} />
               </Button>
+              <span className="text-sm font-black">Criar desafio</span>
             </div>
           )}
           <h2 className="text-xl font-black">Desafios</h2>

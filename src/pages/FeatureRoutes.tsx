@@ -169,6 +169,9 @@ export function GroupOverviewRoute() {
       onProposePostPoints={(postId, points) =>
         pointProposal.mutate({ postId, points })
       }
+      onCreateChallenge={() =>
+        void navigate(`/desafios/criar?grupo=${encodeURIComponent(groupId)}`)
+      }
       {...(overview.data.members.some(
         (member) =>
           member.user_id === user?.id &&
@@ -176,10 +179,6 @@ export function GroupOverviewRoute() {
       )
         ? {
             onInvite: () => void navigate(`/grupo/${groupId}/convidar`),
-            onCreateChallenge: () =>
-              void navigate(
-                `/desafios/criar?grupo=${encodeURIComponent(groupId)}`,
-              ),
           }
         : {})}
       {...(overview.data.members.some(

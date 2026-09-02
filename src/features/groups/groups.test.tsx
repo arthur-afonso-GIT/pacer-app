@@ -95,6 +95,23 @@ describe('group setup', () => {
     ).toBe(true)
   })
 
+  it('lets a regular member create a challenge from the group tab', async () => {
+    const createChallenge = vi.fn()
+    render(
+      <GroupOverviewPage
+        overview={editableOverview}
+        currentUserId="member"
+        onCreateChallenge={createChallenge}
+      />,
+      { wrapper },
+    )
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Desafios' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Criar desafio' }))
+
+    expect(createChallenge).toHaveBeenCalledOnce()
+  })
+
   it('allows an administrator to edit group details', async () => {
     const update = vi.fn()
     render(
