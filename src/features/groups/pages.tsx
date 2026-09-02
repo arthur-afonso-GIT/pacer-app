@@ -410,7 +410,7 @@ export function GroupOverviewPage({
       >
         <Tabs.List
           aria-label="Seções do grupo"
-          className="border-subtle grid grid-cols-5 gap-1 rounded-xl border p-1"
+          className="border-subtle -mx-1 flex snap-x snap-mandatory [scrollbar-width:none] gap-2 overflow-x-auto rounded-2xl border p-1.5 sm:mx-0 sm:grid sm:grid-cols-5 sm:gap-1 [&::-webkit-scrollbar]:hidden"
         >
           {(
             [
@@ -424,7 +424,7 @@ export function GroupOverviewPage({
             <Tabs.Trigger
               key={value}
               value={value}
-              className="text-secondary data-[state=active]:bg-accent-soft data-[state=active]:text-accent min-h-11 rounded-lg px-1 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="text-secondary data-[state=active]:bg-accent-soft data-[state=active]:text-accent min-h-12 min-w-24 flex-none snap-start rounded-xl px-3 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 sm:min-h-11 sm:min-w-0 sm:px-1 sm:text-xs"
             >
               {label}
             </Tabs.Trigger>
