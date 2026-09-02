@@ -17,6 +17,7 @@ const invitation = {
   is_participant: false,
   is_creator: false,
   participant_count: 2,
+  series_group_count: 1,
 }
 
 describe('ChallengeHubPage', () => {
@@ -28,6 +29,9 @@ describe('ChallengeHubPage', () => {
         onCreate={vi.fn()}
         onOpen={vi.fn()}
         onJoin={join}
+        onDismiss={vi.fn()}
+        onLeave={vi.fn()}
+        onCancelSeries={vi.fn()}
       />,
     )
     await userEvent.click(screen.getByRole('tab', { name: 'Convites (1)' }))
@@ -36,5 +40,26 @@ describe('ChallengeHubPage', () => {
       screen.getByRole('button', { name: 'Entrar no desafio' }),
     )
     expect(join).toHaveBeenCalledWith('challenge-1')
+  })
+
+  it('asks for confirmation before dismissing an invitation', async () => {
+    const dismiss = vi.fn()
+    render(
+      <ChallengeHubPage
+        challenges={[invitation]}
+        onCreate={vi.fn()}
+        onOpen={vi.fn()}
+        onJoin={vi.fn()}
+        onDismiss={dismiss}
+        onLeave={vi.fn()}
+        onCancelSeries={vi.fn()}
+      />,
+    )
+    await userEvent.click(screen.getByRole('tab', { name: 'Convites (1)' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Agora não' }))
+    expect(screen.getByText(/Ocultar o convite/)).toBeVisible()
+    expect(dismiss).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+    expect(dismiss).toHaveBeenCalledWith('challenge-1')
   })
 })

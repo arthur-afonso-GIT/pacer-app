@@ -167,6 +167,31 @@ describe('group setup', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('requires the owner to type the group name before deleting it', async () => {
+    const removeGroup = vi.fn()
+    render(
+      <GroupOverviewPage
+        overview={editableOverview}
+        currentUserId="owner"
+        onDeleteGroup={removeGroup}
+      />,
+      { wrapper },
+    )
+    await userEvent.click(screen.getByRole('tab', { name: 'Ajustes' }))
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Excluir este grupo' }),
+    )
+    const confirmation = screen.getByLabelText('Digite Amigos para confirmar')
+    const deleteButton = screen.getByRole('button', {
+      name: 'Excluir grupo definitivamente',
+    })
+    expect(deleteButton).toBeDisabled()
+    await userEvent.type(confirmation, 'Amigos')
+    expect(deleteButton).toBeEnabled()
+    await userEvent.click(deleteButton)
+    expect(removeGroup).toHaveBeenCalledOnce()
+  })
+
   it('opens on feed and separates ranking and members into tabs', async () => {
     render(
       <GroupOverviewPage

@@ -18,6 +18,8 @@ import {
   useActivateChallenge,
   useChallengeHub,
   useChallengeActivityFeed,
+  useChallengeLifecycle,
+  useChallengeParticipants,
   useCreateChallengeInvites,
   useJoinChallenge,
   useVoteChallengePost,
@@ -47,6 +49,7 @@ import {
   useVoteGroupPost,
   useProposeGroupPostPoints,
   useDeleteGroupPost,
+  useDeleteGroup,
   useUpdateGroup,
   useLeaveGroup,
 } from '@/features/groups'
@@ -99,6 +102,7 @@ export function GroupOverviewRoute() {
   const postDeletion = useDeleteGroupPost(repository)
   const groupUpdate = useUpdateGroup(repository, groupId)
   const groupLeave = useLeaveGroup(repository, groupId)
+  const groupDeletion = useDeleteGroup(repository, groupId)
   const challengeRepository = useChallengesRepository()
   const challengeJoin = useJoinChallenge(challengeRepository)
   if (overview.isLoading) return <p role="status">Carregando grupo…</p>
@@ -134,8 +138,10 @@ export function GroupOverviewRoute() {
           onSuccess: () => void navigate('/grupo', { replace: true }),
         })
       }
-      groupActionPending={groupUpdate.isPending || groupLeave.isPending}
-      {...(groupUpdate.error || groupLeave.error
+      groupActionPending={
+        groupUpdate.isPending || groupLeave.isPending || groupDeletion.isPending
+      }
+      {...(groupUpdate.error || groupLeave.error || groupDeletion.error
         ? {
             groupActionError:
               'Não foi possível concluir. Atualize o grupo e tente novamente.',
@@ -176,6 +182,16 @@ export function GroupOverviewRoute() {
               ),
           }
         : {})}
+      {...(overview.data.members.some(
+        (member) => member.user_id === user?.id && member.role === 'owner',
+      )
+        ? {
+            onDeleteGroup: () =>
+              groupDeletion.mutate(undefined, {
+                onSuccess: () => void navigate('/grupo', { replace: true }),
+              }),
+          }
+        : {})}
       onOpenChallenge={(challengeId) => {
         void navigate(`/desafio/${challengeId}`)
       }}
@@ -188,6 +204,7 @@ export function ChallengeHubRoute() {
   const { user } = useAuth()
   const challenges = useChallengeHub(repository, user?.id)
   const joining = useJoinChallenge(repository)
+  const lifecycle = useChallengeLifecycle(repository)
   const navigate = useNavigate()
   return (
     <ChallengeHubPage
@@ -197,12 +214,25 @@ export function ChallengeHubRoute() {
         ? { error: 'Não foi possível carregar os desafios.' }
         : {})}
       {...(joining.variables ? { joiningId: joining.variables } : {})}
+      actionPending={lifecycle.isPending}
+      {...(lifecycle.error
+        ? { actionError: 'Não foi possível concluir esta ação.' }
+        : {})}
       onCreate={() => void navigate('/desafios/criar')}
       onOpen={(id) => void navigate(`/desafio/${id}`)}
       onJoin={(id) =>
         joining.mutate(id, {
           onSuccess: () => void navigate(`/desafio/${id}`),
         })
+      }
+      onDismiss={(challengeId) =>
+        lifecycle.mutate({ action: 'dismiss', challengeId })
+      }
+      onLeave={(challengeId) =>
+        lifecycle.mutate({ action: 'leave', challengeId })
+      }
+      onCancelSeries={(seriesId) =>
+        lifecycle.mutate({ action: 'cancel', seriesId })
       }
     />
   )
@@ -349,6 +379,7 @@ export function ChallengeHomeRoute() {
   const repository = useChallengesRepository()
   const activation = useActivateChallenge(repository)
   const activityFeed = useChallengeActivityFeed(repository, challengeId)
+  const participants = useChallengeParticipants(repository, challengeId)
   const activityVote = useVoteChallengePost(
     repository,
     challengeId,
@@ -370,6 +401,7 @@ export function ChallengeHomeRoute() {
       status={detail.data.effectiveStatus}
       canManage={detail.data.challenge.created_by === user?.id}
       activities={activityFeed.data ?? []}
+      participants={participants.data ?? []}
       {...(user ? { currentUserId: user.id } : {})}
       onVoteActivity={(postId, decision) =>
         activityVote.mutate({ postId, decision })

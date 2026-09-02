@@ -284,6 +284,21 @@ export const createGroupsRepository = (client: SupabaseClient<Database>) => ({
     })
     return result(data, error)
   },
+  async deleteGroup(groupId: string) {
+    const { data, error } = await client.rpc('delete_owned_group', {
+      p_group_id: groupId,
+    })
+    const photoPaths = result(data, error)
+    if (!photoPaths.length) return { photoCleanupFailed: false }
+    try {
+      const removed = await client.storage
+        .from('activity-posts')
+        .remove(photoPaths)
+      return { photoCleanupFailed: Boolean(removed.error) }
+    } catch {
+      return { photoCleanupFailed: true }
+    }
+  },
   async votePost(
     groupId: string,
     postId: string,

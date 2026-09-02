@@ -58,6 +58,8 @@ export interface ChallengeActivityPost {
   requiredVotes: number
   hasVoted: boolean
 }
+export type ChallengeParticipant =
+  Database['public']['Functions']['get_challenge_participants']['Returns'][number]
 const required = <T>(data: T | null, error: { message: string } | null): T => {
   if (error) throw new Error(error.message)
   if (!data) throw new Error('Resposta vazia do servidor')
@@ -91,6 +93,24 @@ export const createChallengesRepository = (
     })
     return required(data, error)
   },
+  async dismissChallenge(challengeId: string) {
+    const { data, error } = await client.rpc('dismiss_challenge_invite', {
+      p_challenge_id: challengeId,
+    })
+    return required(data, error)
+  },
+  async leaveChallenge(challengeId: string) {
+    const { data, error } = await client.rpc('leave_group_challenge', {
+      p_challenge_id: challengeId,
+    })
+    return required(data, error)
+  },
+  async cancelChallengeSeries(seriesId: string) {
+    const { data, error } = await client.rpc('cancel_challenge_series', {
+      p_series_id: seriesId,
+    })
+    return required(data, error)
+  },
   async challengeFeed(challengeId: string): Promise<ChallengeActivityPost[]> {
     const { data, error } = await client.rpc('get_challenge_activity_feed', {
       p_challenge_id: challengeId,
@@ -116,6 +136,15 @@ export const createChallengesRepository = (
         }
       }),
     )
+  },
+  async challengeParticipants(
+    challengeId: string,
+  ): Promise<ChallengeParticipant[]> {
+    const { data, error } = await client.rpc('get_challenge_participants', {
+      p_challenge_id: challengeId,
+    })
+    if (error) throw error
+    return data
   },
   async voteChallengePost(
     challengeId: string,

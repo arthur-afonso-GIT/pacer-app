@@ -9,6 +9,8 @@ import type {
 export const challengeHubKey = ['challenge-hub'] as const
 export const challengeFeedKey = (challengeId: string) =>
   ['challenge-feed', challengeId] as const
+export const challengeParticipantsKey = (challengeId: string) =>
+  ['challenge-participants', challengeId] as const
 
 export const useChallengeHub = (
   repo: Pick<ChallengesRepository, 'listHub'>,
@@ -50,6 +52,35 @@ export const useJoinChallenge = (
   })
 }
 
+export const useChallengeLifecycle = (
+  repo: Pick<
+    ChallengesRepository,
+    'dismissChallenge' | 'leaveChallenge' | 'cancelChallengeSeries'
+  >,
+) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      action: 'dismiss' | 'leave' | 'cancel'
+      challengeId?: string
+      seriesId?: string
+    }) => {
+      if (input.action === 'cancel')
+        await repo.cancelChallengeSeries(input.seriesId ?? '')
+      else if (input.action === 'leave')
+        await repo.leaveChallenge(input.challengeId ?? '')
+      else await repo.dismissChallenge(input.challengeId ?? '')
+    },
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: challengeHubKey }),
+        qc.invalidateQueries({ queryKey: ['groups'] }),
+        qc.invalidateQueries({ queryKey: ['today'] }),
+        qc.invalidateQueries({ queryKey: ['notifications'] }),
+      ]),
+  })
+}
+
 export const useChallengeActivityFeed = (
   repo: Pick<ChallengesRepository, 'challengeFeed'>,
   challengeId: string,
@@ -57,6 +88,16 @@ export const useChallengeActivityFeed = (
   useQuery({
     queryKey: challengeFeedKey(challengeId),
     queryFn: () => repo.challengeFeed(challengeId),
+    enabled: Boolean(challengeId),
+  })
+
+export const useChallengeParticipants = (
+  repo: Pick<ChallengesRepository, 'challengeParticipants'>,
+  challengeId: string,
+) =>
+  useQuery({
+    queryKey: challengeParticipantsKey(challengeId),
+    queryFn: () => repo.challengeParticipants(challengeId),
     enabled: Boolean(challengeId),
   })
 

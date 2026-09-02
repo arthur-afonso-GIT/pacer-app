@@ -93,6 +93,26 @@ export const useLeaveGroup = (
   })
 }
 
+export const useDeleteGroup = (
+  repo: Pick<GroupsRepository, 'deleteGroup'>,
+  groupId: string,
+) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => repo.deleteGroup(groupId),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: groupKeys.detail(groupId) })
+      return Promise.all([
+        qc.invalidateQueries({ queryKey: groupKeys.all }),
+        qc.invalidateQueries({ queryKey: ['today'] }),
+        qc.invalidateQueries({ queryKey: ['calendar'] }),
+        qc.invalidateQueries({ queryKey: ['ranking'] }),
+        qc.invalidateQueries({ queryKey: ['challenge-hub'] }),
+      ])
+    },
+  })
+}
+
 export const useVoteGroupPost = (
   repo: Pick<GroupsRepository, 'votePost'>,
   groupId: string,

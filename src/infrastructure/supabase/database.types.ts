@@ -910,6 +910,18 @@ export type Database = {
         }
         Returns: string[]
       }
+      cancel_challenge_series: {
+        Args: { p_series_id: string }
+        Returns: number
+      }
+      dismiss_challenge_invite: {
+        Args: { p_challenge_id: string }
+        Returns: boolean
+      }
+      delete_owned_group: {
+        Args: { p_group_id: string }
+        Returns: string[]
+      }
       create_activity_post: {
         Args: {
           p_name: string
@@ -1050,6 +1062,7 @@ export type Database = {
           participant_count: number
           participation_mode: string
           series_id: string | null
+          series_group_count: number
           starts_at: string
           status: Database['public']['Enums']['challenge_status']
         }[]
@@ -1119,6 +1132,16 @@ export type Database = {
           suggested_points: number
         }[]
       }
+      get_challenge_participants: {
+        Args: { p_challenge_id: string }
+        Returns: {
+          avatar_url: string | null
+          display_name: string
+          is_creator: boolean
+          joined_at: string
+          user_id: string
+        }[]
+      }
       get_group_leaderboard: {
         Args: { p_group_id: string }
         Returns: {
@@ -1162,6 +1185,10 @@ export type Database = {
       join_group_challenge: {
         Args: { p_challenge_id: string }
         Returns: Database['public']['Tables']['challenge_members']['Row']
+      }
+      leave_group_challenge: {
+        Args: { p_challenge_id: string }
+        Returns: boolean
       }
       is_active_group_member: { Args: { p_group_id: string }; Returns: boolean }
       is_challenge_member: {

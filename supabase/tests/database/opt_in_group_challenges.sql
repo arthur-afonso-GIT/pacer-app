@@ -38,24 +38,33 @@ do $$ declare f record; first_challenge uuid; activity_id uuid; begin
   first_challenge:=f.challenge_ids[1];
   perform pg_temp.check_challenge(cardinality(f.challenge_ids)=2,'one challenge per selected group');
   perform pg_temp.check_challenge((select count(*)=2 from public.challenge_members where user_id=f.creator_id and status='active'),'creator joins both instances');
+  perform pg_temp.check_challenge((select bool_and(series_group_count=2) from public.get_my_challenge_hub()),'hub identifies multi-group series');
   perform pg_temp.check_challenge((select count(*)=0 from public.challenge_members where user_id=f.member_id),'group members are not auto-enrolled');
 
   perform set_config('request.jwt.claim.sub',f.member_id::text,true);
   perform pg_temp.check_challenge((select count(*)=2 from public.get_my_challenge_hub() where not is_participant),'member sees both invitations');
   perform public.join_group_challenge(first_challenge);
   perform pg_temp.check_challenge((select is_participant from public.get_my_challenge_hub() where challenge_id=first_challenge),'member can opt in');
+  perform pg_temp.check_challenge((select count(*)=2 from public.get_challenge_participants(first_challenge)),'group members can see active participants');
   activity_id:=public.create_challenge_activity_post('Read chapter',15,f.photo_path,first_challenge);
   perform pg_temp.check_challenge((select count(*)=1 from public.get_challenge_activity_feed(first_challenge) where post_id=activity_id),'challenge activity appears in its feed');
   perform set_config('request.jwt.claim.sub',f.creator_id::text,true);
   perform public.vote_activity_post(activity_id,(select group_id from public.challenges where id=first_challenge),'approved');
   perform set_config('request.jwt.claim.sub',f.member_id::text,true);
   perform pg_temp.check_challenge((select points=15 from public.get_challenge_ranking(first_challenge,'total') where user_id=f.member_id),'approved challenge post reaches challenge ranking');
+  perform public.dismiss_challenge_invite(f.challenge_ids[2]);
+  perform pg_temp.check_challenge(not exists(select 1 from public.get_my_challenge_hub() where challenge_id=f.challenge_ids[2]),'dismissed invitation leaves the hub');
+  perform pg_temp.check_challenge(public.leave_group_challenge(first_challenge),'participant can leave');
+  perform pg_temp.check_challenge(not exists(select 1 from public.get_my_challenge_hub() where challenge_id=first_challenge),'left challenge leaves the member hub');
 
   perform set_config('request.jwt.claim.sub',f.outsider_id::text,true);
   begin
     perform public.join_group_challenge(first_challenge);
     raise exception 'outsider unexpectedly joined';
   exception when insufficient_privilege then null; end;
+  perform set_config('request.jwt.claim.sub',f.creator_id::text,true);
+  perform pg_temp.check_challenge(public.cancel_challenge_series((select series_id from public.challenges where id=first_challenge))=2,'creator cancels every group instance');
+  perform pg_temp.check_challenge((select count(*)=2 from public.challenges where id=any(f.challenge_ids) and status='cancelled'),'series instances are cancelled');
 end $$;
 reset role;
 

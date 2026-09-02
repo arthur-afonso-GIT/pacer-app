@@ -352,6 +352,7 @@ export function GroupOverviewPage({
   groupActionSuccess,
   onCreateActivity,
   onJoinChallenge,
+  onDeleteGroup,
 }: {
   overview: GroupOverview
   onCreateChallenge?: () => void
@@ -374,10 +375,13 @@ export function GroupOverviewPage({
   groupActionSuccess?: string
   onCreateActivity?: () => void
   onJoinChallenge?: (challengeId: string) => void
+  onDeleteGroup?: () => void
 }) {
   const [deleteCandidate, setDeleteCandidate] = useState<string>()
   const [rejectCandidate, setRejectCandidate] = useState<string>()
   const [leaveConfirmation, setLeaveConfirmation] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState(false)
+  const [deleteGroupName, setDeleteGroupName] = useState('')
   const currentMembership = overview.members.find(
     (member) => member.user_id === currentUserId,
   )
@@ -561,6 +565,62 @@ export function GroupOverviewPage({
                     Sair do grupo
                   </Button>
                 ))}
+            </Surface>
+          )}
+          {onDeleteGroup && currentMembership?.role === 'owner' && (
+            <Surface
+              as="section"
+              className="grid gap-3 border-red-300 p-4"
+              aria-labelledby="delete-group-title"
+            >
+              <div>
+                <h2 id="delete-group-title" className="text-xl font-black">
+                  Excluir grupo
+                </h2>
+                <p className="text-secondary mt-1 text-sm">
+                  Esta ação remove membros, convites, desafios e dados
+                  exclusivos deste grupo. Publicações compartilhadas com outros
+                  grupos serão preservadas.
+                </p>
+              </div>
+              {deleteConfirmation ? (
+                <div className="grid gap-3">
+                  <Input
+                    label={`Digite ${overview.group.name} para confirmar`}
+                    value={deleteGroupName}
+                    autoComplete="off"
+                    onChange={(event) => setDeleteGroupName(event.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="danger"
+                    loading={groupActionPending}
+                    disabled={deleteGroupName !== overview.group.name}
+                    onClick={onDeleteGroup}
+                  >
+                    Excluir grupo definitivamente
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={groupActionPending}
+                    onClick={() => {
+                      setDeleteConfirmation(false)
+                      setDeleteGroupName('')
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={() => setDeleteConfirmation(true)}
+                >
+                  Excluir este grupo
+                </Button>
+              )}
             </Surface>
           )}
         </Tabs.Content>
@@ -757,8 +817,12 @@ export function GroupOverviewPage({
                   <div className="grid gap-3 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="font-black">{post.authorName}</p>
-                        <p className="text-secondary text-sm">{post.name}</p>
+                        <h3 className="text-xl leading-tight font-black">
+                          {post.name}
+                        </h3>
+                        <p className="text-secondary mt-1 text-xs font-bold">
+                          por {post.authorName}
+                        </p>
                       </div>
                       <Badge
                         tone={

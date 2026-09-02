@@ -1,5 +1,5 @@
-import { Badge, Button, Surface } from '@/design-system'
-import type { ChallengeActivityPost } from './api'
+import { Avatar, Badge, Button, Surface } from '@/design-system'
+import type { ChallengeActivityPost, ChallengeParticipant } from './api'
 
 export type ChallengeDestination =
   'post' | 'submit' | 'reviews' | 'ranking' | 'habit'
@@ -24,6 +24,7 @@ interface ChallengeHomePageProps {
   publishError?: string
   onPublish?: () => void
   activities?: readonly ChallengeActivityPost[]
+  participants?: readonly ChallengeParticipant[]
   currentUserId?: string
   onVoteActivity?: (postId: string, decision: 'approved' | 'rejected') => void
   onNavigate: (destination: ChallengeDestination) => void
@@ -85,6 +86,7 @@ export function ChallengeHomePage({
   publishError,
   onPublish,
   activities = [],
+  participants = [],
   currentUserId,
   onVoteActivity,
   onNavigate,
@@ -167,6 +169,37 @@ export function ChallengeHomePage({
           )}
         </Surface>
       )}
+      {participants.length > 0 && (
+        <Surface
+          as="section"
+          className="grid gap-3 p-4"
+          aria-labelledby="participants-title"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="participants-title" className="text-lg font-black">
+              Participantes
+            </h2>
+            <Badge>{participants.length}</Badge>
+          </div>
+          <ul className="grid gap-2">
+            {participants.map((participant) => (
+              <li key={participant.user_id} className="flex items-center gap-3">
+                <Avatar
+                  {...(participant.avatar_url
+                    ? { src: participant.avatar_url }
+                    : {})}
+                  fallback={participant.display_name.slice(0, 2).toUpperCase()}
+                  size="sm"
+                />
+                <span className="min-w-0 flex-1 truncate font-bold">
+                  {participant.display_name}
+                </span>
+                {participant.is_creator && <Badge>Criador</Badge>}
+              </li>
+            ))}
+          </ul>
+        </Surface>
+      )}
       {status === 'draft' && canManage && onPublish && (
         <Surface variant="subtle" className="grid gap-3 p-4">
           <div>
@@ -236,10 +269,12 @@ export function ChallengeHomePage({
                 <div className="grid gap-3 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-secondary text-xs font-bold">
-                        {activity.authorName}
+                      <h3 className="text-xl leading-tight font-black">
+                        {activity.activityName}
+                      </h3>
+                      <p className="text-secondary mt-1 text-xs font-bold">
+                        por {activity.authorName}
                       </p>
-                      <h3 className="font-black">{activity.activityName}</h3>
                     </div>
                     <Badge>{activity.suggestedPoints} pts</Badge>
                   </div>
