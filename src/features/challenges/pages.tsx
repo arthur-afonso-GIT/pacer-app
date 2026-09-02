@@ -254,6 +254,7 @@ export function CreateGlobalHabitPage({
       ]),
   })
   const [photo, setPhoto] = useState<File>()
+  const [photoPreview, setPhotoPreview] = useState<string>()
   const [photoError, setPhotoError] = useState<string>()
   const [groupError, setGroupError] = useState<string>()
   const [groupSearch, setGroupSearch] = useState('')
@@ -265,6 +266,18 @@ export function CreateGlobalHabitPage({
     initialGroupIds.filter((id) => groups.some((group) => group.id === id)),
   )
   const initialSelectionApplied = useRef(false)
+  useEffect(
+    () => () => {
+      if (photoPreview) URL.revokeObjectURL(photoPreview)
+    },
+    [photoPreview],
+  )
+  const selectPhoto = (file?: File) => {
+    if (!file) return
+    setPhoto(file)
+    setPhotoPreview(URL.createObjectURL(file))
+    setPhotoError(undefined)
+  }
   useEffect(() => {
     if (initialSelectionApplied.current || !groups.length) return
     initialSelectionApplied.current = true
@@ -338,10 +351,7 @@ export function CreateGlobalHabitPage({
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 capture="environment"
-                onChange={(event) => {
-                  setPhoto(event.target.files?.[0])
-                  setPhotoError(undefined)
-                }}
+                onChange={(event) => selectPhoto(event.target.files?.[0])}
               />
             </label>
             <label className="ds-button ds-button--secondary ds-button--md cursor-pointer">
@@ -350,15 +360,20 @@ export function CreateGlobalHabitPage({
                 className="sr-only"
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
-                onChange={(event) => {
-                  setPhoto(event.target.files?.[0])
-                  setPhotoError(undefined)
-                }}
+                onChange={(event) => selectPhoto(event.target.files?.[0])}
               />
             </label>
           </div>
-          {photo && (
-            <p className="text-secondary truncate text-sm">{photo.name}</p>
+          {photoPreview ? (
+            <img
+              src={photoPreview}
+              alt="Prévia da foto da atividade"
+              className="max-h-96 w-full rounded-2xl object-contain"
+            />
+          ) : (
+            <p className="text-secondary text-xs">
+              Tire uma foto agora ou escolha uma imagem da galeria.
+            </p>
           )}
           {photoError && (
             <p role="alert" className="text-sm text-red-700">
